@@ -16,6 +16,11 @@ TypeScript, Tailwind CSS, Supabase, Recharts and lucide-react.
   status toggle.
 - **⚠️ Anomaly Detection** — flags expense spikes >35% above the 3-month moving average
   with Minor/Moderate/Severe severity badges and resolution actions.
+- **💳 Subscriptions (tier management)** — grants `free` / `plus` / `business` tiers per
+  user (upsert into `public.user_tiers` with service-role key + audit row), tier badges
+  with tooltips, search by email or user ID, pagination, confirmation dialog with the
+  tier's entitlements, toasts, and a "Paste user ID from upgrade email" quick action that
+  parses `Wazy upgrade request — {tier} — user <ID>`.
 - **⚙️ System Administration** — read-only SQL query runner, CSV/JSON exporters,
   custom document type manager.
 
@@ -43,8 +48,32 @@ Open http://localhost:3000.
 | --- | --- |
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build |
-| `npm run test` | Run vitest unit tests (analytics, anomaly engine, CSV export, schema validation) |
+| `npm run test` | Run vitest unit tests (analytics, anomaly engine, CSV export, tiers, schema validation) |
 | `npm run lint` | ESLint |
+
+## Subscription tiers
+
+Before using the **Subscriptions** section, run `supabase/user_tiers_schema.sql` once
+against the production Supabase project (Dashboard → SQL Editor → New query). It creates
+`public.user_tiers` (RLS on, self-read-only policy) and `public.user_tier_audit`
+(service-role only), plus a trigger that blocks any write not made with the service role.
+
+- Valid tier values are the lowercase strings `free`, `plus`, `business` — the Flutter
+  app reads `user_tiers.tier` for `auth.uid()` and falls back to Free on a missing row.
+- All console writes go through `POST /api/user-tiers/set` using
+  `SUPABASE_SERVICE_ROLE_KEY` server-side; the anon key can never change a tier.
+- Every change appends an audit row (old → new tier, end date, note). The user sees new
+  entitlements by simply reopening the Profile tab in the app.
+
+### Time-limited grants (1 month / 3 months / 1 year)
+
+When setting a tier, the admin picks a duration: **No expiry** (default, permanent grant),
+**1 month**, **3 months** or **1 year**. The route turns the duration into an absolute
+`expires_at` timestamp (calendar months, clamped month-ends) stored on the `user_tiers` row
+and mirrored in `user_tier_audit`. The Subscriptions list resolves an expired grant to Free,
+so the user drops back automatically — no cron job needed. If you already ran an older
+version of `supabase/user_tiers_schema.sql`, re-run it: it adds the `expires_at` columns
+idempotently (`add column if not exists`).
 
 ## Tech stack
 

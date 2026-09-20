@@ -114,6 +114,41 @@ export interface RecurringTransaction {
   last_logged_at: string | null;
 }
 
+/**
+ * Subscription tier values stored in `public.user_tiers.tier`. The Flutter app
+ * resolves entitlements from these exact lowercase strings — do not change them.
+ */
+export type UserTier = "free" | "plus" | "business";
+
+/**
+ * How long an admin-granted tier lasts before it expires. `none` is the
+ * default and means the grant has no end date (previous console behavior).
+ * Console-only concept: the Flutter app never reads durations.
+ */
+export type TierDuration = "none" | "1m" | "3m" | "1y";
+
+/** One row per user in `public.user_tiers` (missing row ⇒ Free in the app). */
+export interface UserTierRow {
+  user_id: string;
+  tier: string;
+  /** When the granted tier lapses back to Free; null/absent = no expiry. */
+  expires_at?: string | null;
+  updated_at?: string | null;
+}
+
+/** Immutable tier-change history row in `public.user_tier_audit` (service-role only). */
+export interface UserTierAuditRow {
+  id: number | string;
+  user_id: string;
+  old_tier: UserTier | null;
+  new_tier: UserTier;
+  /** Plan end date written at the time of the change; null = no expiry. */
+  expires_at: string | null;
+  changed_by: string | null;
+  note: string | null;
+  created_at: string;
+}
+
 export interface WazyDataBundle {
   collections: Collection[];
   documents: Document[];

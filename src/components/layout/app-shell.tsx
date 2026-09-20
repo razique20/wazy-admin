@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
   AlertTriangle,
+  CreditCard,
   Settings2,
   Menu,
   X,
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/primitives";
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users },
+  { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/collections", label: "Collections & Documents", icon: FolderKanban },
   { href: "/finance", label: "Finance Ledger", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },

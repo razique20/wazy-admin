@@ -12,7 +12,9 @@
 --
 -- Duration feature: user_tiers.expires_at (nullable timestamptz) records when
 -- an admin-granted plan lapses; null = no expiry. The console resolves an
--- expired grant to Free when listing — the Flutter app needs no changes.
+-- expired grant to Free when listing, and the Flutter app reads expires_at
+-- (falling back to plan_ends_at) and downgrades locally once it passes.
+-- Section 4 snaps the DB row itself back to Free so all three stay in sync.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -89,3 +91,38 @@ drop trigger if exists user_tiers_guard on public.user_tiers;
 create trigger user_tiers_guard
   before insert or update on public.user_tiers
   for each row execute function public.user_tiers_block_anon_writes();
+
+-- ---------------------------------------------------------------------
+-- 4) Auto-expire: a paid tier whose expires_at has passed snaps back to
+--    Free on the next write to the row (admin renewal, or any admin save).
+--    The console list and the app also treat expired grants as Free at
+--    read time; this trigger keeps the stored row itself honest so the
+--    three never drift apart.
+--
+--    Only expires_at is handled here. Grants made through the Flutter
+--    schema's plan_ends_at column are covered by its own
+--    user_tiers_auto_expire trigger when that schema is installed too.
+-- ---------------------------------------------------------------------
+create or replace function public.expire_finished_tier_grants()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.tier <> 'free' and new.expires_at is not null
+     and new.expires_at <= now() then
+    insert into public.user_tier_audit (user_id, old_tier, new_tier, expires_at, changed_by, note)
+    values (new.user_id, new.tier, 'free', null,
+            'system', 'auto-expired: grant ended ' || new.expires_at::text);
+    new.tier := 'free';
+    new.expires_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists user_tiers_auto_expire_grants on public.user_tiers;
+create trigger user_tiers_auto_expire_grants
+  before insert or update on public.user_tiers
+  for each row execute function public.expire_finished_tier_grants();

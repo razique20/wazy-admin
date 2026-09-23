@@ -17,6 +17,9 @@ const FETCH_SPEC: {
   { key: "budgets", table: "category_budgets", order: "category", asc: true },
   { key: "envelopes", table: "savings_envelopes", order: "name", asc: true },
   { key: "recurring", table: "recurring_transactions", order: "start_date", asc: false },
+  { key: "supportRequests", table: "support_requests", order: "created_at", asc: false },
+  { key: "aiQuotaUsage", table: "ai_quota_usage", order: "updated_at", asc: false },
+  { key: "appVersions", table: "app_versions", order: "platform", asc: true },
 ];
 
 function getClient() {

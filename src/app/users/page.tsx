@@ -31,6 +31,8 @@ interface AuthUser {
   email: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
+  emailConfirmedAt?: string | null;
+  bannedUntil?: string | null;
 }
 
 type SortField = "email" | "documentsCount" | "netTotal" | "lastActivity" | "expensesThisMonth";
@@ -46,6 +48,7 @@ export default function UsersPage() {
     dir: "desc",
   });
   const [selected, setSelected] = useState<UserSummary | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const loadAuthUsers = async () => {
     try {
@@ -120,6 +123,10 @@ export default function UsersPage() {
         <Stat label="Net cash flow (all users)" value={formatCurrency(totals.net)} tone={totals.net >= 0 ? "text-emerald-400" : "text-red-400"} />
         <Stat label="Urgent / expired docs" value={String(totals.urgent)} tone={totals.urgent > 0 ? "text-amber-400" : "text-white"} />
       </div>
+
+      {actionNotice ? (
+        <p className="text-xs text-emerald-400">{actionNotice}</p>
+      ) : null}
 
       {authMessage && authSource === "unconfigured" ? (
         <Card className="border-amber-500/30 bg-amber-500/5">
@@ -255,7 +262,19 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {selected ? <UserDetailModal user={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? (
+        <UserDetailModal
+          user={selected}
+          onClose={() => setSelected(null)}
+          authUser={authUsers.find((u) => u.id === selected.ownerId) ?? null}
+          onUserChanged={() => {
+            void loadAuthUsers();
+            setActionNotice(
+              `Account action applied to ${selected.email ?? selected.ownerId.slice(0, 8)} — the list refreshes automatically.`,
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }

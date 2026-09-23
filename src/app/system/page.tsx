@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Database, Download, FileJson, FileSpreadsheet, Loader2, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { BellRing, Database, Download, FileJson, FileSpreadsheet, Loader2, Plus, RotateCcw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
-import { insertRow, deleteRow } from "@/lib/hooks";
+import { deleteRow, insertRow } from "@/lib/hooks";
 import { downloadFile, timestampSlug, toCSV } from "@/lib/export";
+import {
+  APP_PLATFORMS,
+  APP_PLATFORM_LABELS,
+  isValidVersion,
+} from "@/lib/app-version";
+import { formatDate, titleize } from "@/lib/format";
+import { cn } from "@/lib/cn";
 import {
   Badge,
   Button,
@@ -13,7 +20,14 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  EmptyState,
   Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/primitives";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CustomDocumentType } from "@/lib/types";
@@ -53,6 +67,8 @@ export default function SystemPage() {
           <TabsTrigger value="export">Data Exporter</TabsTrigger>
           <TabsTrigger value="sql">SQL Runner</TabsTrigger>
           <TabsTrigger value="types">Custom Doc Types</TabsTrigger>
+          <TabsTrigger value="reminders">Reminders</TabsTrigger>
+          <TabsTrigger value="versions">App Version</TabsTrigger>
         </TabsList>
 
         <TabsContent value="export">
@@ -68,6 +84,14 @@ export default function SystemPage() {
             types={data.customDocumentTypes}
             onChanged={() => void refresh()}
           />
+        </TabsContent>
+
+        <TabsContent value="reminders">
+          <RemindersManager onChanged={() => void refresh()} />
+        </TabsContent>
+
+        <TabsContent value="versions">
+          <AppVersionManager />
         </TabsContent>
       </Tabs>
     </div>
@@ -329,6 +353,407 @@ function formatCell(v: unknown): string {
   if (v === null || v === undefined) return "—";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
+}
+
+/* --------------------------- Reminder management --------------------------- */
+
+function RemindersManager({ onChanged }: { onChanged: () => void }) {
+  const { data, loading } = useWazy();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  const docOwner = new Map(data.documents.map((d) => [d.id, d.owner_id]));
+  const pending = data.reminders.filter((r) => !r.sent_at);
+  const sent = data.reminders.filter((r) => r.sent_at);
+  const dueToday = pending.filter((r) => r.remind_at <= new Date().toISOString().slice(0, 10));
+
+  const markDueAsSent = async () => {
+    setBusy(true);
+    setNotice(null);
+    try {
+      let done = 0;
+      let failure: string | null = null;
+      // Route-scoped, id-based updates through the generic admin-db route.
+      for (const r of dueToday.slice(0, 200)) {
+        const res = await fetch("/api/admin-db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "update", table: "reminders", id: r.id, payload: { sent_at: new Date().toISOString() } }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          failure = json.error ?? `Request failed (${res.status})`;
+          break;
+        }
+        done += 1;
+      }
+      if (failure) setNotice({ kind: "error", text: `Batch stopped after ${done}: ${failure}` });
+      else {
+        setNotice({ kind: "success", text: `Marked ${done} due reminder(s) as sent.` });
+        onChanged();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clearStale = async () => {
+    setBusy(true);
+    setNotice(null);
+    try {
+      let done = 0;
+      let failure: string | null = null;
+      const cutoff = new Date(Date.now() - 90 * 86_400_000).toISOString();
+      for (const r of sent.filter((r) => r.sent_at && r.sent_at < cutoff).slice(0, 200)) {
+        const res = await fetch("/api/admin-db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", table: "reminders", id: r.id }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          failure = json.error ?? `Request failed (${res.status})`;
+          break;
+        }
+        done += 1;
+      }
+      if (failure) setNotice({ kind: "error", text: `Cleanup stopped after ${done}: ${failure}` });
+      else {
+        setNotice({ kind: "success", text: `Deleted ${done} stale sent reminder(s) older than 90 days.` });
+        onChanged();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <StatTile label="Pending reminders" value={pending.length} />
+        <StatTile label="Due (remind_at ≤ today)" value={dueToday.length} tone={dueToday.length > 0 ? "text-amber-400" : "text-white"} />
+        <StatTile label="Sent" value={sent.length} />
+        <StatTile label="Total scheduled" value={data.reminders.length} />
+      </div>
+
+      {notice ? (
+        <p className={cn("text-xs", notice.kind === "success" ? "text-emerald-400" : "text-red-400")}>{notice.text}</p>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending reminders</CardTitle>
+          <CardDescription>Notifications not yet sent, grouped per channel · owners come from their document</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-zinc-600">Loading…</p>
+          ) : pending.length === 0 ? (
+            <EmptyState icon={<BellRing className="h-10 w-10" />} title="No pending reminders" />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Remind at</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="text-right">State</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pending.slice(0, 100).map((r) => {
+                  const ownerId = docOwner.get(r.document_id);
+                  const due = r.remind_at <= new Date().toISOString().slice(0, 10);
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>{formatDate(r.remind_at)}</TableCell>
+                      <TableCell>
+                        <Badge variant="neutral">{titleize(r.channel)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-[11px] text-zinc-500">{ownerId ? `${ownerId.slice(0, 8)}…` : "unknown doc"}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {due ? <Badge variant="warning">due now</Badge> : <Badge variant="info">scheduled</Badge>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Maintenance actions</CardTitle>
+          <CardDescription>
+            Batch-mark due reminders as sent, or purge sent reminders older than 90 days. The app&apos;s own
+            create_due_reminders() scan runs on its normal schedule.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => void markDueAsSent()} disabled={busy || dueToday.length === 0}>
+            <Send className="h-4 w-4" />
+            Mark {dueToday.length} due as sent
+          </Button>
+          <Button variant="danger" onClick={() => void clearStale()} disabled={busy}>
+            <Trash2 className="h-4 w-4" />
+            Clear sent &gt; 90 days
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StatTile({ label, value, tone = "text-white" }: { label: string; value: number; tone?: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className={cn("mt-1 text-2xl font-semibold", tone)}>{formatNumber(value)}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------- App version & force update ----------------------- */
+
+interface VersionDraft {
+  minRequiredVersion: string;
+  latestVersion: string;
+  isForceUpdate: boolean;
+  downloadUrl: string;
+  releaseNotes: string;
+}
+
+const EMPTY_DRAFT: VersionDraft = {
+  minRequiredVersion: "",
+  latestVersion: "",
+  isForceUpdate: false,
+  downloadUrl: "",
+  releaseNotes: "",
+};
+
+function AppVersionManager() {
+  const { data, refresh } = useWazy();
+  const [platform, setPlatform] = useState<string>("all");
+  const [draft, setDraft] = useState<VersionDraft>(EMPTY_DRAFT);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  const current = data.appVersions.find((v) => v.platform === platform);
+
+  const selectPlatform = (p: string) => {
+    setPlatform(p);
+    const row = data.appVersions.find((v) => v.platform === p);
+    setDraft(
+      row
+        ? {
+            minRequiredVersion: row.min_required_version ?? "",
+            latestVersion: row.latest_version ?? "",
+            isForceUpdate: row.is_force_update,
+            downloadUrl: row.download_url ?? "",
+            releaseNotes: row.release_notes ?? "",
+          }
+        : EMPTY_DRAFT,
+    );
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/app-versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          minRequiredVersion: draft.minRequiredVersion || null,
+          latestVersion: draft.latestVersion,
+          isForceUpdate: draft.isForceUpdate,
+          downloadUrl: draft.downloadUrl || null,
+          releaseNotes: draft.releaseNotes || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        setNotice({ kind: "error", text: json.error ?? `Save failed (${res.status})` });
+        return;
+      }
+      setNotice({ kind: "success", text: `Version config saved for ${APP_PLATFORM_LABELS[platform as keyof typeof APP_PLATFORM_LABELS] ?? platform}.` });
+      void refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disableForce = async () => {
+    setDraft((d) => ({ ...d, isForceUpdate: false }));
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/app-versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          minRequiredVersion: draft.minRequiredVersion || null,
+          latestVersion: draft.latestVersion,
+          isForceUpdate: false,
+          downloadUrl: draft.downloadUrl || null,
+          releaseNotes: draft.releaseNotes || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        setNotice({ kind: "error", text: json.error ?? `Save failed (${res.status})` });
+      } else {
+        setNotice({ kind: "success", text: "Force update disabled — users can keep using the current version." });
+        void refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const latestInvalid = draft.latestVersion.trim() !== "" && !isValidVersion(draft.latestVersion);
+  const minInvalid = draft.minRequiredVersion.trim() !== "" && !isValidVersion(draft.minRequiredVersion);
+  const forceNeedsMin = draft.isForceUpdate && draft.minRequiredVersion.trim() === "";
+
+  return (
+    <div className="space-y-4">
+      {notice ? (
+        <p className={cn("text-xs", notice.kind === "success" ? "text-emerald-400" : "text-red-400")}>{notice.text}</p>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Publish version config</CardTitle>
+            <CardDescription>
+              One row per platform · the app reads its platform row (falling back to “all”) before sign-in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {APP_PLATFORMS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => selectPlatform(p)}
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-xs transition-colors",
+                    platform === p
+                      ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
+                      : "border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200",
+                  )}
+                >
+                  {APP_PLATFORM_LABELS[p]}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Latest version *</label>
+                <Input
+                  placeholder="1.2.0"
+                  value={draft.latestVersion}
+                  onChange={(e) => setDraft((d) => ({ ...d, latestVersion: e.target.value }))}
+                  className={latestInvalid ? "border-red-500/60" : ""}
+                />
+                {latestInvalid ? <p className="mt-1 text-[11px] text-red-400">Must look like 1.2.0</p> : null}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Minimum required version</label>
+                <Input
+                  placeholder="1.1.0 (blank = no minimum)"
+                  value={draft.minRequiredVersion}
+                  onChange={(e) => setDraft((d) => ({ ...d, minRequiredVersion: e.target.value }))}
+                  className={minInvalid ? "border-red-500/60" : ""}
+                />
+                {minInvalid ? <p className="mt-1 text-[11px] text-red-400">Must look like 1.1.0</p> : null}
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Download URL</label>
+                <Input
+                  placeholder="https://apps.apple.com/… or https://play.google.com/…"
+                  value={draft.downloadUrl}
+                  onChange={(e) => setDraft((d) => ({ ...d, downloadUrl: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">Release notes</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/60 focus:outline-none"
+                  placeholder="What's new in this version…"
+                  value={draft.releaseNotes}
+                  onChange={(e) => setDraft((d) => ({ ...d, releaseNotes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+              <input
+                type="checkbox"
+                checked={draft.isForceUpdate}
+                onChange={(e) => setDraft((d) => ({ ...d, isForceUpdate: e.target.checked }))}
+                className="h-4 w-4 accent-amber-400"
+              />
+              <span className="text-xs text-amber-300">
+                Force update — block the app until the user upgrades to at least the minimum required version.
+              </span>
+            </label>
+            {forceNeedsMin ? <p className="text-[11px] text-red-400">Force update needs a minimum required version.</p> : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button variant="primary" onClick={() => void save()} disabled={busy || latestInvalid || minInvalid || forceNeedsMin}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                Publish config
+              </Button>
+              {current?.is_force_update ? (
+                <Button variant="secondary" onClick={() => void disableForce()} disabled={busy}>
+                  <RotateCcw className="h-4 w-4" />
+                  Disable force update
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Current config</CardTitle>
+            <CardDescription>All platform rows as stored in public.app_versions</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {data.appVersions.length === 0 ? (
+              <p className="text-sm text-zinc-600">
+                No version rows yet. Run supabase/app_version_schema.sql first, then publish a config.
+              </p>
+            ) : (
+              data.appVersions.map((v) => (
+                <div key={v.id} className="rounded-xl border border-zinc-800 bg-black/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-zinc-100">{APP_PLATFORM_LABELS[v.platform as keyof typeof APP_PLATFORM_LABELS] ?? v.platform}</p>
+                    {v.is_force_update ? <Badge variant="danger">force update</Badge> : <Badge variant="success">soft update</Badge>}
+                  </div>
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    latest {v.latest_version ?? "—"} · min {v.min_required_version ?? "none"} · updated {formatDate(v.updated_at)}
+                  </p>
+                  {v.release_notes ? <p className="mt-1.5 line-clamp-2 text-[11px] text-zinc-400">{v.release_notes}</p> : null}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 /* --------------------------- Custom doc type CRUD -------------------------- */

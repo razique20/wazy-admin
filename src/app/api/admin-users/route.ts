@@ -3,11 +3,13 @@ import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   email: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
+  emailConfirmedAt: string | null;
+  bannedUntil: string | null;
 }
 
 /**
@@ -30,7 +32,7 @@ export async function GET() {
     const admin = createServiceRoleClient();
     const users: AuthUser[] = [];
     // Paginate through auth users (50 per page by default).
-    for (let page = 1; page <= 10; page += 1) {
+    for (let page = 1; page <= 20; page += 1) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 50 });
       if (error) throw new Error(error.message);
       for (const u of data.users) {
@@ -39,6 +41,8 @@ export async function GET() {
           email: u.email ?? null,
           createdAt: u.created_at ?? null,
           lastSignInAt: u.last_sign_in_at ?? null,
+          emailConfirmedAt: u.email_confirmed_at ?? null,
+          bannedUntil: u.banned_until ?? null,
         });
       }
       if (data.users.length < 50) break;

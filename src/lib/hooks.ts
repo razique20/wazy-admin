@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
+  AiQuotaUsage,
+  AppVersion,
   CategoryBudget,
   Collection,
   CustomDocumentType,
@@ -11,6 +13,7 @@ import type {
   RecurringTransaction,
   Reminder,
   SavingsEnvelope,
+  SupportRequest,
   WazyDataBundle,
 } from "@/lib/types";
 
@@ -35,6 +38,9 @@ const EMPTY_BUNDLE: WazyDataBundle = {
   budgets: [],
   envelopes: [],
   recurring: [],
+  supportRequests: [],
+  aiQuotaUsage: [],
+  appVersions: [],
 };
 
 const FETCH_SPEC: { key: keyof WazyDataBundle; table: string; order: string; asc: boolean }[] = [
@@ -46,6 +52,9 @@ const FETCH_SPEC: { key: keyof WazyDataBundle; table: string; order: string; asc
   { key: "budgets", table: "category_budgets", order: "category", asc: true },
   { key: "envelopes", table: "savings_envelopes", order: "name", asc: true },
   { key: "recurring", table: "recurring_transactions", order: "start_date", asc: false },
+  { key: "supportRequests", table: "support_requests", order: "created_at", asc: false },
+  { key: "aiQuotaUsage", table: "ai_quota_usage", order: "updated_at", asc: false },
+  { key: "appVersions", table: "app_versions", order: "platform", asc: true },
 ];
 
 /**
@@ -84,6 +93,9 @@ export function useWazyData(): WazyDataState {
           budgets: (json.data.budgets ?? []) as CategoryBudget[],
           envelopes: (json.data.envelopes ?? []) as SavingsEnvelope[],
           recurring: (json.data.recurring ?? []) as RecurringTransaction[],
+          supportRequests: (json.data.supportRequests ?? []) as SupportRequest[],
+          aiQuotaUsage: (json.data.aiQuotaUsage ?? []) as AiQuotaUsage[],
+          appVersions: (json.data.appVersions ?? []) as AppVersion[],
         });
         setTableErrors(json.errors ?? {});
         setSource(json.source);

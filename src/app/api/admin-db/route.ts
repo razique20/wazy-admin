@@ -13,6 +13,9 @@ const ALLOWED_TABLES = new Set([
   "category_budgets",
   "savings_envelopes",
   "recurring_transactions",
+  "support_requests",
+  "ai_quota_usage",
+  "app_versions",
 ]);
 
 function getClient() {

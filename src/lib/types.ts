@@ -149,6 +149,53 @@ export interface UserTierAuditRow {
   created_at: string;
 }
 
+export type SupportRequestType =
+  | "tracking_option_request"
+  | "feature_request"
+  | "bug_report"
+  | "support_request";
+export type SupportStatus = "open" | "in_progress" | "resolved";
+
+export interface SupportRequest {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  request_type: SupportRequestType | string;
+  title: string;
+  description: string | null;
+  status: SupportStatus | string;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `feature_name` values written by the Flutter app — do not change. */
+export type AiFeatureName = "groq_ai_summary" | "groq_ai_budget_plan";
+
+export interface AiQuotaUsage {
+  id: string;
+  user_id: string;
+  feature_name: AiFeatureName | string;
+  /** Format `YYYY-MM`. */
+  usage_month: string;
+  used_count: number;
+  updated_at: string;
+}
+
+export type AppPlatform = "all" | "ios" | "android" | "web";
+
+export interface AppVersion {
+  id: string;
+  platform: AppPlatform | string;
+  min_required_version: string | null;
+  latest_version: string | null;
+  is_force_update: boolean;
+  download_url: string | null;
+  release_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WazyDataBundle {
   collections: Collection[];
   documents: Document[];
@@ -158,4 +205,7 @@ export interface WazyDataBundle {
   budgets: CategoryBudget[];
   envelopes: SavingsEnvelope[];
   recurring: RecurringTransaction[];
+  supportRequests: SupportRequest[];
+  aiQuotaUsage: AiQuotaUsage[];
+  appVersions: AppVersion[];
 }

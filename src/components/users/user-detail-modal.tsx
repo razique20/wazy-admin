@@ -1,16 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FolderKanban, PiggyBank } from "lucide-react";
+import { Ban, FolderKanban, KeyRound, Loader2, PiggyBank, Trash2, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge, EmptyState } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { useWazy } from "@/components/providers/data-provider";
 import type { UserSummary } from "@/lib/users";
 import { formatCurrency, formatDate, titleize } from "@/lib/format";
 import { customTypeName } from "@/lib/domain";
 import type { DocumentStatus } from "@/lib/types";
 import { cn } from "@/lib/cn";
+
+interface DetailAuthUser {
+  id: string;
+  email: string | null;
+  createdAt: string | null;
+  lastSignInAt: string | null;
+  emailConfirmedAt?: string | null;
+  bannedUntil?: string | null;
+}
 
 const STATUS_VARIANT: Record<DocumentStatus, "success" | "danger" | "info" | "neutral"> = {
   active: "success",
@@ -19,9 +28,50 @@ const STATUS_VARIANT: Record<DocumentStatus, "success" | "danger" | "info" | "ne
   archived: "neutral",
 };
 
-export function UserDetailModal({ user, onClose }: { user: UserSummary; onClose: () => void }) {
+export function UserDetailModal({
+  user,
+  onClose,
+  authUser,
+  onUserChanged,
+}: {
+  user: UserSummary;
+  onClose: () => void;
+  authUser?: DetailAuthUser | null;
+  onUserChanged?: () => void;
+}) {
   const { data } = useWazy();
   const [tab, setTab] = useState("collections");
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"ban" | "unban" | "delete" | "reset_password" | null>(null);
+
+  const isBanned = Boolean(authUser?.bannedUntil && new Date(authUser.bannedUntil).getTime() > Date.now());
+
+  const runUserAction = async (action: "ban" | "unban" | "delete" | "reset_password") => {
+    setConfirmAction(null);
+    setActionBusy(action);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin-users/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.ownerId, action }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        setActionError(json.error ?? `Action failed (${res.status})`);
+        return;
+      }
+      if (action === "delete") {
+        onClose();
+        onUserChanged?.();
+        return;
+      }
+      onUserChanged?.();
+    } finally {
+      setActionBusy(null);
+    }
+  };
 
   const collections = useMemo(
     () => data.collections.filter((c) => c.owner_id === user.ownerId),
@@ -57,8 +107,83 @@ export function UserDetailModal({ user, onClose }: { user: UserSummary; onClose:
           </DialogTitle>
           <DialogDescription>
             Owner {shortId(user.ownerId)} · last activity {formatDate(user.lastActivity)}
+            {authUser?.createdAt ? ` · signed up ${formatDate(authUser.createdAt)}` : ""}
+            {authUser && !authUser.emailConfirmedAt ? " · email not confirmed" : ""}
           </DialogDescription>
         </DialogHeader>
+
+        {authUser ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-black/40 p-3">
+            <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Account actions</span>
+            {isBanned ? (
+              <Button variant="secondary" size="sm" onClick={() => setConfirmAction("unban")} disabled={actionBusy !== null}>
+                {actionBusy === "unban" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                Unban
+              </Button>
+            ) : (
+              <Button variant="secondary" size="sm" onClick={() => setConfirmAction("ban")} disabled={actionBusy !== null}>
+                {actionBusy === "ban" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                Ban user
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setConfirmAction("reset_password")} disabled={actionBusy !== null}>
+              {actionBusy === "reset_password" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+              Reset password
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setConfirmAction("delete")} disabled={actionBusy !== null} className="ml-auto">
+              {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Delete user
+            </Button>
+          </div>
+        ) : null}
+        {actionError ? <p className="text-xs text-red-400">{actionError}</p> : null}
+        {authUser && authUser.bannedUntil && isBanned ? (
+          <p className="text-[11px] text-amber-400">This account is banned (until {formatDate(authUser.bannedUntil)}).</p>
+        ) : null}
+
+        {/* Delete confirmation */}
+        {confirmAction === "delete" ? (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+            <p className="text-xs text-red-300">
+              Permanently delete {authUser?.email ?? user.ownerId.slice(0, 8)} and ALL their data? This cascades to
+              collections, documents, transactions and tier rows, and cannot be undone.
+            </p>
+            <div className="mt-2 flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setConfirmAction(null)} disabled={actionBusy !== null}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => void runUserAction("delete")} disabled={actionBusy !== null}>
+                {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Delete permanently
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {confirmAction && confirmAction !== "delete" ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+            <p className="text-xs text-zinc-300">
+              {confirmAction === "ban"
+                ? "Suspend this account? The user cannot sign in until you unban them."
+                : confirmAction === "unban"
+                  ? "Lift the suspension and allow sign-in again?"
+                  : "Send a password recovery email to this user's address?"}
+            </p>
+            <div className="mt-2 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)} disabled={actionBusy !== null}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirmAction === "unban" ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => void runUserAction(confirmAction)}
+                disabled={actionBusy !== null}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Mini KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -199,3 +324,5 @@ function initials(email: string | null): string {
 function shortId(id: string): string {
   return id.slice(0, 8);
 }
+
+export type { DetailAuthUser as UserDetailAuthUser };

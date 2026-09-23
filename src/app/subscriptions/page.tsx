@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardPaste,
   Crown,
+  History,
   Loader2,
   RefreshCw,
   Search,
@@ -68,6 +69,17 @@ interface AuthUser {
   lastSignInAt: string | null;
 }
 
+interface TierAuditRow {
+  id: number | string;
+  user_id: string;
+  old_tier: string | null;
+  new_tier: string;
+  expires_at: string | null;
+  changed_by: string | null;
+  note: string | null;
+  created_at: string;
+}
+
 const PAGE_SIZE = 10;
 
 const TIER_BADGE_VARIANT: Record<UserTier, "default" | "success" | "warning" | "info" | "neutral"> = {
@@ -98,6 +110,12 @@ export default function SubscriptionsPage() {
     tier: UserTier;
     duration: TierDuration;
   } | null>(null);
+
+  // Tier audit trail state
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditRows, setAuditRows] = useState<TierAuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditMessage, setAuditMessage] = useState<string | null>(null);
 
   // Toast state
   const [toast, setToast] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -225,6 +243,28 @@ export default function SubscriptionsPage() {
 
   const configured = source === "service_role";
 
+  const loadAudit = useCallback(async () => {
+    setAuditLoading(true);
+    setAuditMessage(null);
+    try {
+      const res = await fetch("/api/tier-audit");
+      const json = await res.json().catch(() => ({}));
+      setAuditRows(json.rows ?? []);
+      setAuditMessage(json.message ?? null);
+    } catch {
+      setAuditMessage("Failed to load tier audit history.");
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  const openAudit = () => {
+    setAuditOpen(true);
+    void loadAudit();
+  };
+
+  const emailFor = (userId: string) => authUsers.find((u) => u.id === userId)?.email ?? null;
+
   return (
     <div className="space-y-4">
       {/* Summary strip */}
@@ -291,6 +331,10 @@ export default function SubscriptionsPage() {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
+              <Button variant="secondary" size="sm" onClick={openAudit}>
+                <History className="h-4 w-4" />
+                Audit history
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                 Refresh
@@ -511,6 +555,65 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Tier audit history dialog */}
+      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-4 w-4 text-zinc-500" />
+              Tier audit history
+            </DialogTitle>
+            <DialogDescription>
+              Every tier change recorded in public.user_tier_audit, including automatic expiries. Most recent first.
+            </DialogDescription>
+          </DialogHeader>
+
+          {auditLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : auditRows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-zinc-500">
+              {auditMessage ?? "No tier changes recorded yet."}
+            </p>
+          ) : (
+            <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+              {auditRows.map((row) => {
+                const oldTier = toTier(row.old_tier);
+                const newTier = toTier(row.new_tier) ?? "free";
+                const isAuto = row.changed_by === "system";
+                return (
+                  <li key={String(row.id)} className="rounded-xl border border-zinc-800 bg-black/40 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-zinc-100">
+                          {emailFor(row.user_id) ?? "Unknown user"}
+                          <span className="ml-2 font-mono text-[11px] text-zinc-600">{row.user_id.slice(0, 8)}…</span>
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">
+                          {oldTier ? `${TIER_LABELS[oldTier]} → ${TIER_LABELS[newTier]}` : `Granted ${TIER_LABELS[newTier]}`}
+                          {row.expires_at ? ` · ends ${formatDate(row.expires_at)}` : ""}
+                          {" · "}
+                          {isAuto ? "system auto-expiry" : row.changed_by ?? "unknown"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isAuto ? <Badge variant="warning">auto</Badge> : null}
+                        <Badge variant={TIER_BADGE_VARIANT[newTier]}>{TIER_LABELS[newTier]}</Badge>
+                      </div>
+                    </div>
+                    {row.note ? <p className="mt-1.5 truncate text-[11px] italic text-zinc-500">“{row.note}”</p> : null}
+                    <p className="mt-1 text-[10px] text-zinc-600">{formatDate(row.created_at)}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

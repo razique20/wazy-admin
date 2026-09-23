@@ -15,12 +15,15 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { FolderKanban, FileText, Gauge, TrendingUp, TrendingDown } from "lucide-react";
-import { useMemo } from "react";
+import { FolderKanban, FileText, Gauge, TrendingUp, TrendingDown, LifeBuoy, Bot, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useWazy } from "@/components/providers/data-provider";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from "@/components/ui/primitives";
 import { computeKpis, computeMonthlyCashFlow, computeExpenseBreakdown, computeRenewalHorizon } from "@/lib/analytics";
+import { computeSupportStats } from "@/lib/support";
+import { quotaMonthKey, totalAiCalls } from "@/lib/ai-quota";
+import { toTier, TIER_LABELS } from "@/lib/tiers";
 import { formatCurrency } from "@/lib/format";
 
 const TOOLTIP_STYLE = {
@@ -46,13 +49,67 @@ const SERIES = {
 
 const DONUT_COLORS = [SERIES.blue, SERIES.cyan, SERIES.emerald, SERIES.amber, SERIES.purple, SERIES.pink, SERIES.gray, "#3f3f46", "#52525b", "#71717a"];
 
+interface AuthUser {
+  id: string;
+  email: string | null;
+  createdAt: string | null;
+  lastSignInAt: string | null;
+}
+
 export default function OverviewPage() {
   const { data, loading, error } = useWazy();
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
+  const [tiers, setTiers] = useState<Record<string, string>>({});
+  const [tierExpiries, setTierExpiries] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [usersRes, tiersRes] = await Promise.all([fetch("/api/admin-users"), fetch("/api/user-tiers")]);
+        const usersJson = await usersRes.json().catch(() => ({}));
+        const tiersJson = await tiersRes.json().catch(() => ({}));
+        if (cancelled) return;
+        setAuthUsers(usersJson.users ?? []);
+        setTiers(tiersJson.tiers ?? {});
+        setTierExpiries(tiersJson.expiries ?? {});
+      } catch {
+        // Dashboard still renders platform-data widgets without auth info.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const kpis = useMemo(() => computeKpis(data, new Date()), [data]);
   const cashFlow = useMemo(() => computeMonthlyCashFlow(data.transactions, 6), [data.transactions]);
   const breakdown = useMemo(() => computeExpenseBreakdown(data.transactions), [data.transactions]);
   const horizon = useMemo(() => computeRenewalHorizon(data.documents), [data.documents]);
+
+  // Platform widgets (doc §12)
+  const supportStats = useMemo(() => computeSupportStats(data.supportRequests), [data.supportRequests]);
+  const aiCalls = useMemo(() => totalAiCalls(data.aiQuotaUsage, quotaMonthKey()), [data.aiQuotaUsage]);
+  const platform = useMemo(() => {
+    const resolved: Record<string, ReturnType<typeof toTier>> = {};
+    for (const [userId, raw] of Object.entries(tiers)) resolved[userId] = toTier(raw);
+    const counts = { free: 0, plus: 0, business: 0 };
+    for (const u of authUsers) {
+      const t = resolved[u.id] ?? "free";
+      if (t) counts[t] += 1;
+    }
+    const newUsers7d = authUsers.filter((u) => {
+      if (!u.createdAt) return false;
+      const created = new Date(u.createdAt).getTime();
+      return Number.isFinite(created) && created >= Date.now() - 7 * 86_400_000;
+    }).length;
+    const expiringPlans = Object.entries(tierExpiries).filter(([, iso]) => {
+      if (!iso) return false;
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) && t > Date.now() && t <= Date.now() + 30 * 86_400_000;
+    }).length;
+    return { counts, newUsers7d, expiringPlans };
+  }, [authUsers, tiers, tierExpiries]);
 
   const horizonData = horizon.map((h) => ({
     bucket: h.bucket,
@@ -72,6 +129,42 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
+      {/* Platform KPIs (doc §12) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Total Users"
+          value={String(authUsers.length)}
+          subvalue={`${platform.newUsers7d} new in the last 7 days`}
+          icon={<Users className="h-4 w-4" />}
+          accent="white"
+          loading={loading && authUsers.length === 0}
+        />
+        <KpiCard
+          title="Paid Users"
+          value={String(platform.counts.plus + platform.counts.business)}
+          subvalue={`${platform.counts.plus} ${TIER_LABELS.plus} · ${platform.counts.business} ${TIER_LABELS.business} · ${platform.expiringPlans} plans end ≤30d`}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent={platform.counts.plus + platform.counts.business > 0 ? "emerald" : "white"}
+          loading={loading && authUsers.length === 0}
+        />
+        <KpiCard
+          title="Open Support Tickets"
+          value={String(supportStats.open)}
+          subvalue={`${supportStats.trackingRequests} tracking requests (feature demand)`}
+          icon={<LifeBuoy className="h-4 w-4" />}
+          accent={supportStats.open > 0 ? "amber" : "blue"}
+          loading={loading}
+        />
+        <KpiCard
+          title="AI Calls This Month"
+          value={String(aiCalls)}
+          subvalue="Across all users and AI features"
+          icon={<Bot className="h-4 w-4" />}
+          accent="blue"
+          loading={loading}
+        />
+      </div>
+
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard

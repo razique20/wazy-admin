@@ -51,6 +51,20 @@ Open http://localhost:3000.
 | `npm run test` | Run vitest unit tests (analytics, anomaly engine, CSV export, tiers, schema validation) |
 | `npm run lint` | ESLint |
 
+## User data integrity (orphaned users)
+
+If the Users page ever shows an **orphaned / Unknown user** entry, it means data rows
+exist for an owner id that is no longer in `auth.users` — typically a user deleted
+before the app tables had cascade foreign keys (data rows store only the owner UUID,
+so a re-registered user with a new UUID can never re-claim them).
+
+Run `supabase/user_data_cascade_schema.sql` once in the Supabase SQL Editor. It
+idempotently (1) deletes all rows whose owner no longer exists in `auth.users`,
+(2) adds `on delete cascade` foreign keys from `collections`, `documents`, finance
+and budget tables to `auth.users` so every future user delete cleans up
+automatically, and (3) reports any remaining dangling rows via warnings. The orphaned
+entry disappears from the console on the next refresh.
+
 ## Subscription tiers
 
 Before using the **Subscriptions** section, run `supabase/user_tiers_schema.sql` once

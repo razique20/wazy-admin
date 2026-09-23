@@ -66,7 +66,7 @@ begin
   -- 1b) Everything with a direct owner/user column. NULL owner rows are
   --     unattributable and are deliberately left alone.
   for t, col in
-    select tbl, col from (values
+    select tbl_name, col_name from (values
       ('collections', 'owner_id'),
       ('documents', 'owner_id'),
       ('finance_transactions', 'owner_id'),
@@ -78,7 +78,7 @@ begin
       ('user_tier_audit', 'user_id'),
       ('ai_quota_usage', 'user_id'),
       ('support_requests', 'user_id')
-    ) as v(tbl, col)
+    ) as v(tbl_name, col_name)
   loop
     if to_regclass(format('public.%I', t)) is null
        or not exists (
@@ -231,7 +231,7 @@ begin
   end if;
 
   for t, col in
-    select tbl, col from (values
+    select tbl_name, col_name from (values
       ('collections', 'owner_id'),
       ('documents', 'owner_id'),
       ('finance_transactions', 'owner_id'),
@@ -243,7 +243,7 @@ begin
       ('user_tier_audit', 'user_id'),
       ('ai_quota_usage', 'user_id'),
       ('support_requests', 'user_id')
-    ) as v(tbl, col)
+    ) as v(tbl_name, col_name)
   loop
     if to_regclass(format('public.%I', t)) is not null and exists (
       select 1 from information_schema.columns

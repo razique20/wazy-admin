@@ -5,6 +5,11 @@ import { monthKey, toNumber } from "@/lib/format";
 export interface UserSummary {
   ownerId: string;
   email: string | null;
+  /**
+   * True when the owner has data rows but no auth.users account — usually
+   * left behind by an incomplete delete on projects without cascade FKs.
+   */
+  orphaned?: boolean;
   collectionsCount: number;
   personalCollections: number;
   companyCollections: number;
@@ -137,7 +142,10 @@ export function computeUserSummaries(
   }
 
   const summaries = [...byOwner.values()];
+  const authIds = new Set(authUsers.map((u) => u.id));
   for (const s of summaries) {
+    // Data rows exist for this owner but the auth account is gone.
+    s.orphaned = !authIds.has(s.ownerId) && authUsers.length > 0;
     s.netTotal = round2(s.incomeTotal - s.expensesTotal);
     s.incomeThisMonth = round2(s.incomeThisMonth);
     s.expensesThisMonth = round2(s.expensesThisMonth);

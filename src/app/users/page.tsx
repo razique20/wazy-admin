@@ -67,6 +67,7 @@ export default function UsersPage() {
   }, []);
 
   const users = useMemo(() => computeUserSummaries(data, authUsers), [data, authUsers]);
+  const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -126,6 +127,18 @@ export default function UsersPage() {
 
       {actionNotice ? (
         <p className="text-xs text-emerald-400">{actionNotice}</p>
+      ) : null}
+
+      {orphanedCount > 0 ? (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="pt-4">
+            <p className="text-xs text-amber-300">
+              {orphanedCount} user{orphanedCount > 1 ? "s" : ""} have leftover data but no auth account (shown as
+              “orphaned”). Open them and use “Delete leftover data” to clean up — this usually means their auth
+              deletion didn&apos;t cascade.
+            </p>
+          </CardContent>
+        </Card>
       ) : null}
 
       {authMessage && authSource === "unconfigured" ? (
@@ -219,7 +232,14 @@ export default function UsersPage() {
                           {initials(u.email)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-100">{u.email ?? "Unknown user"}</p>
+                          <p className="truncate font-medium text-zinc-100">
+                            {u.email ?? "Unknown user"}
+                            {u.orphaned ? (
+                              <Badge variant="danger" className="ml-2" title="Data rows remain but no auth.users account exists (ghost user)">
+                                orphaned
+                              </Badge>
+                            ) : null}
+                          </p>
                           <p className="truncate font-mono text-[11px] text-zinc-500">{u.ownerId.slice(0, 8)}…</p>
                         </div>
                       </div>
@@ -269,6 +289,8 @@ export default function UsersPage() {
           authUser={authUsers.find((u) => u.id === selected.ownerId) ?? null}
           onUserChanged={() => {
             void loadAuthUsers();
+            void refresh();
+            setSelected(null);
             setActionNotice(
               `Account action applied to ${selected.email ?? selected.ownerId.slice(0, 8)} — the list refreshes automatically.`,
             );

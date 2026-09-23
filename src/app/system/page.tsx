@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { BellRing, Database, Download, FileJson, FileSpreadsheet, Loader2, Plus, RotateCcw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BellRing, Database, Download, FileJson, FileSpreadsheet, History, Loader2, Plus, RotateCcw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
 import { deleteRow, insertRow } from "@/lib/hooks";
 import { downloadFile, timestampSlug, toCSV } from "@/lib/export";
@@ -10,7 +10,7 @@ import {
   APP_PLATFORM_LABELS,
   isValidVersion,
 } from "@/lib/app-version";
-import { formatDate, titleize } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import {
   Badge,
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/primitives";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CustomDocumentType } from "@/lib/types";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, titleize } from "@/lib/format";
 
 type ExportKind = "documents" | "transactions";
 
@@ -69,6 +69,7 @@ export default function SystemPage() {
           <TabsTrigger value="types">Custom Doc Types</TabsTrigger>
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
           <TabsTrigger value="versions">App Version</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         <TabsContent value="export">
@@ -92,6 +93,10 @@ export default function SystemPage() {
 
         <TabsContent value="versions">
           <AppVersionManager />
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <AdminAuditViewer />
         </TabsContent>
       </Tabs>
     </div>
@@ -754,6 +759,189 @@ function AppVersionManager() {
       </div>
     </div>
   );
+}
+
+/* ------------------------------- Audit log -------------------------------- */
+
+interface AdminAuditRow {
+  id: number | string;
+  action: string;
+  user_id: string | null;
+  target_table: string | null;
+  target_id: string | null;
+  details: Record<string, unknown>;
+  performed_by: string;
+  performed_at: string;
+}
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  "user.ban": "Banned user",
+  "user.unban": "Unbanned user",
+  "user.delete": "Deleted user",
+  "user.reset_password": "Sent password reset",
+  "user.data_purge": "Purged user data",
+  "tier.grant": "Tier change",
+  "quota.reset": "AI quota reset",
+  "version.publish": "Version published",
+  "reminder.mark_sent": "Reminders marked sent",
+  "reminder.cleanup": "Reminder cleanup",
+  "row.insert": "Row inserted",
+  "row.update": "Row updated",
+  "row.delete": "Row deleted",
+};
+
+function auditActionLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
+
+function auditVariant(action: string): "danger" | "warning" | "success" | "info" | "neutral" {
+  if (action === "user.delete" || action === "user.data_purge" || action === "row.delete") return "danger";
+  if (action === "user.ban" || action === "quota.reset") return "warning";
+  if (action === "user.unban" || action === "user.reset_password") return "success";
+  if (action === "tier.grant" || action === "version.publish") return "info";
+  return "neutral";
+}
+
+function AdminAuditViewer() {
+  const [rows, setRows] = useState<AdminAuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin-audit?limit=200");
+      const json = await res.json().catch(() => ({}));
+      setRows(json.rows ?? []);
+      setMessage(json.message ?? null);
+    } catch {
+      setMessage("Failed to load the audit log.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const visible = rows.filter((r) => {
+    const q = filter.trim().toLowerCase();
+    if (q && !`${r.action} ${r.performed_by} ${r.target_table ?? ""} ${JSON.stringify(r.details ?? {})}`.toLowerCase().includes(q)) {
+      return false;
+    }
+    if (userFilter.trim() && !(r.user_id ?? "").toLowerCase().includes(userFilter.trim().toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle>Admin Audit Log</CardTitle>
+            <CardDescription>
+              Every console action recorded in public.admin_audit_log — user management, tier grants, quota resets,
+              version publishes and row edits. Failures are recorded too.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              className="w-56"
+              placeholder="Search action, table, details…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <Input
+              className="w-56"
+              placeholder="Filter by user id…"
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+            />
+            <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
+              <History className={cn("h-4 w-4", loading && "animate-spin")} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-sm text-zinc-600">Loading audit log…</p>
+        ) : message && rows.length === 0 ? (
+          <p className="text-sm text-amber-400">{message}</p>
+        ) : visible.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-500">
+            {rows.length === 0
+              ? "No admin actions recorded yet. Run supabase/admin_audit_log_schema.sql to enable logging."
+              : "No entries match the filters."}
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>When</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>User / target</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visible.map((r) => (
+                <TableRow key={String(r.id)}>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="text-xs text-zinc-300">{formatDate(r.performed_at)}</span>
+                    <span className="block text-[10px] text-zinc-600">
+                      {new Date(r.performed_at).toLocaleTimeString("en-GB")}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={auditVariant(r.action)}>{auditActionLabel(r.action)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {r.user_id ? (
+                      <span className="font-mono text-[11px] text-zinc-400">{r.user_id.slice(0, 8)}…</span>
+                    ) : r.target_table ? (
+                      <span className="text-[11px] text-zinc-400">
+                        {titleize(r.target_table)}
+                        {r.target_id ? <span className="ml-1 font-mono text-zinc-600">{String(r.target_id).slice(0, 8)}…</span> : null}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-md">
+                    <span className="line-clamp-2 text-[11px] text-zinc-500">{summarizeDetails(r.details)}</span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-zinc-400">{r.performed_by}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function summarizeDetails(details: Record<string, unknown> | null | undefined): string {
+  if (!details || typeof details !== "object") return "—";
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(details)) {
+    if (value === null || value === undefined || (typeof value === "object" && Object.keys(value as object).length === 0)) {
+      continue;
+    }
+    if (typeof value === "object") {
+      parts.push(`${key}: ${JSON.stringify(value)}`);
+    } else {
+      parts.push(`${key}: ${String(value)}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 /* --------------------------- Custom doc type CRUD -------------------------- */

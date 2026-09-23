@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 import { expiryForDuration, isTier, isTierDuration, isUserId } from "@/lib/tiers";
+import { writeAuditLog } from "@/lib/audit";
 import type { TierDuration, UserTier } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +113,13 @@ export async function POST(request: Request) {
         `[user-tiers] audit row not written for ${userId} (${previousTier ?? "none"} -> ${tier}): ${auditError.message}`,
       );
     }
+
+    // Admin audit log — the consolidated record of console actions.
+    await writeAuditLog(admin, {
+      action: "tier.grant",
+      userId,
+      details: { previousTier, newTier: tier, duration, expiresAt, note },
+    });
 
     return NextResponse.json<SetTierResponse>({
       ok: true,

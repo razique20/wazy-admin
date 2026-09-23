@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
+import { writeAuditLog } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -78,8 +79,16 @@ export async function POST(request: Request) {
 
     const { data, error } = await query.select("id");
     if (error) throw new Error(error.message);
+    const resetCount = data?.length ?? 0;
 
-    return NextResponse.json<ResetResponse>({ ok: true, resetCount: data?.length ?? 0 });
+    await writeAuditLog(admin, {
+      action: "quota.reset",
+      userId: typeof body.userId === "string" && body.userId.trim() !== "" ? body.userId.trim() : null,
+      targetTable: "ai_quota_usage",
+      details: { usageMonth: month, featureName: body.featureName ?? null, resetCount, allUsers: body.allUsers === true },
+    });
+
+    return NextResponse.json<ResetResponse>({ ok: true, resetCount });
   } catch (err) {
     return NextResponse.json<ResetResponse>(
       { ok: false, error: err instanceof Error ? err.message : "Quota reset failed" },

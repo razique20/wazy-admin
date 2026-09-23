@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey, supabase } from "@/lib/supabase";
+import { writeAuditLog, type AuditAction } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,13 @@ interface DbAction {
   limit?: number;
 }
 
+/** Audit action per DbAction, when the console caller opts in. */
+const ROW_ACTION_MAP: Record<string, AuditAction> = {
+  insert: "row.insert",
+  update: "row.update",
+  delete: "row.delete",
+};
+
 export async function POST(req: Request) {
   let body: DbAction;
   try {
@@ -47,6 +55,17 @@ export async function POST(req: Request) {
   }
 
   const client = getClient();
+  const auditAction = ROW_ACTION_MAP[action];
+  const auditClient = hasServiceRoleKey() ? client : null;
+  const logAudit = async (extra?: Record<string, unknown>) => {
+    if (!auditAction || !auditClient) return;
+    await writeAuditLog(auditClient, {
+      action: auditAction,
+      targetTable: table,
+      targetId: id ?? null,
+      details: { ...(extra ?? {}), payload: summarizePayload(payload) },
+    });
+  };
 
   try {
     if (action === "select") {
@@ -62,6 +81,7 @@ export async function POST(req: Request) {
       if (!payload) return NextResponse.json({ error: "payload is required" }, { status: 400 });
       const { data, error } = await client.from(table).insert(payload).select();
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      await logAudit({ insertedId: (data as { id?: string }[] | null)?.[0]?.id ?? null });
       return NextResponse.json({ data });
     }
 
@@ -70,6 +90,7 @@ export async function POST(req: Request) {
       if (!payload) return NextResponse.json({ error: "payload is required" }, { status: 400 });
       const { data, error } = await client.from(table).update(payload).eq("id", id).select();
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      await logAudit();
       return NextResponse.json({ data });
     }
 
@@ -77,6 +98,7 @@ export async function POST(req: Request) {
       if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
       const { error } = await client.from(table).delete().eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      await logAudit();
       return NextResponse.json({ ok: true });
     }
 
@@ -87,4 +109,13 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Keeps audit entries small: logs only which fields changed, never full row
+ * content (descriptions, notes and file metadata can be large and sensitive).
+ */
+function summarizePayload(payload: Record<string, unknown> | undefined): Record<string, unknown> | null {
+  if (!payload) return null;
+  return { fields: Object.keys(payload) };
 }

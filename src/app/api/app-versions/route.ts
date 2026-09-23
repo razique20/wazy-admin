@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 import { isPlatform } from "@/lib/app-version";
+import { writeAuditLog } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,18 @@ export async function POST(request: Request) {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+
+    await writeAuditLog(admin, {
+      action: "version.publish",
+      targetTable: "app_versions",
+      targetId: data?.id ?? null,
+      details: {
+        platform: body.platform,
+        latestVersion,
+        minRequiredVersion,
+        isForceUpdate,
+      },
+    });
 
     return NextResponse.json<UpsertResponse>({ ok: true, id: data?.id ?? undefined });
   } catch (err) {

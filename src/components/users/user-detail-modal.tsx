@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Ban, FolderKanban, KeyRound, Loader2, PiggyBank, Trash2, Undo2 } from "lucide-react";
+import { Ban, Eraser, FolderKanban, KeyRound, Loader2, PiggyBank, Trash2, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
@@ -43,11 +43,13 @@ export function UserDetailModal({
   const [tab, setTab] = useState("collections");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<"ban" | "unban" | "delete" | "reset_password" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "ban" | "unban" | "delete" | "purge_data" | "reset_password" | null
+  >(null);
 
   const isBanned = Boolean(authUser?.bannedUntil && new Date(authUser.bannedUntil).getTime() > Date.now());
 
-  const runUserAction = async (action: "ban" | "unban" | "delete" | "reset_password") => {
+  const runUserAction = async (action: "ban" | "unban" | "delete" | "purge_data" | "reset_password") => {
     setConfirmAction(null);
     setActionBusy(action);
     setActionError(null);
@@ -62,7 +64,7 @@ export function UserDetailModal({
         setActionError(json.error ?? `Action failed (${res.status})`);
         return;
       }
-      if (action === "delete") {
+      if (action === "delete" || action === "purge_data") {
         onClose();
         onUserChanged?.();
         return;
@@ -112,6 +114,27 @@ export function UserDetailModal({
           </DialogDescription>
         </DialogHeader>
 
+        {user.orphaned ? (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-xs text-amber-300">
+              Orphaned user: data rows exist but no auth.users account was found (likely a previous delete that didn&apos;t
+              cascade). “Delete leftover data” removes those rows so this entry disappears.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="danger" size="sm" onClick={() => setConfirmAction("purge_data")} disabled={actionBusy !== null}>
+                {actionBusy === "purge_data" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eraser className="h-3.5 w-3.5" />}
+                Delete leftover data
+              </Button>
+              {authUser ? null : (
+                <Button variant="secondary" size="sm" onClick={() => setConfirmAction("delete")} disabled={actionBusy !== null}>
+                  {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Try full delete again
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {authUser ? (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-black/40 p-3">
             <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Account actions</span>
@@ -160,7 +183,25 @@ export function UserDetailModal({
           </div>
         ) : null}
 
-        {confirmAction && confirmAction !== "delete" ? (
+        {confirmAction === "purge_data" ? (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+            <p className="text-xs text-red-300">
+              Delete all leftover data rows for {user.ownerId.slice(0, 8)}… (documents, transactions, tiers, etc.)?
+              This cannot be undone.
+            </p>
+            <div className="mt-2 flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setConfirmAction(null)} disabled={actionBusy !== null}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => void runUserAction("purge_data")} disabled={actionBusy !== null}>
+                {actionBusy === "purge_data" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Delete data
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {confirmAction && confirmAction !== "delete" && confirmAction !== "purge_data" ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
             <p className="text-xs text-zinc-300">
               {confirmAction === "ban"

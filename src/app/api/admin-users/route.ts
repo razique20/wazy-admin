@@ -18,14 +18,19 @@ export interface AuthUser {
  * If SUPABASE_SERVICE_ROLE_KEY is not configured, degrades gracefully to an
  * empty user list — the Users page then shows owners derived from data tables.
  */
+const NO_STORE = { "Cache-Control": "no-store" } as const;
+
 export async function GET() {
   if (!hasServiceRoleKey()) {
-    return NextResponse.json({
-      users: [],
-      source: "unconfigured" as const,
-      message:
-        "SUPABASE_SERVICE_ROLE_KEY is not set — add it to .env.local to list registered users from auth.users.",
-    });
+    return NextResponse.json(
+      {
+        users: [],
+        source: "unconfigured" as const,
+        message:
+          "SUPABASE_SERVICE_ROLE_KEY is not set — add it to .env.local to list registered users from auth.users.",
+      },
+      { headers: NO_STORE },
+    );
   }
 
   try {
@@ -48,7 +53,7 @@ export async function GET() {
       if (data.users.length < 50) break;
     }
 
-    return NextResponse.json({ users, source: "service_role" as const });
+    return NextResponse.json({ users, source: "service_role" as const }, { headers: NO_STORE });
   } catch (err) {
     return NextResponse.json(
       {
@@ -56,7 +61,7 @@ export async function GET() {
         source: "error" as const,
         message: err instanceof Error ? err.message : "Failed to list users",
       },
-      { status: 500 },
+      { status: 500, headers: NO_STORE },
     );
   }
 }

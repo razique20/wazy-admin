@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Ban, Eraser, FolderKanban, KeyRound, Loader2, PiggyBank, Trash2, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge, Button, EmptyState } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState, Input } from "@/components/ui/primitives";
 import { useWazy } from "@/components/providers/data-provider";
 import type { UserSummary } from "@/lib/users";
 import { formatCurrency, formatDate, titleize } from "@/lib/format";
@@ -20,6 +20,9 @@ interface DetailAuthUser {
   emailConfirmedAt?: string | null;
   bannedUntil?: string | null;
 }
+
+/** Text the admin must type verbatim (case-insensitive) to arm the delete buttons. */
+const CONFIRM_TOKEN = "DELETE";
 
 const STATUS_VARIANT: Record<DocumentStatus, "success" | "danger" | "info" | "neutral"> = {
   active: "success",
@@ -46,11 +49,31 @@ export function UserDetailModal({
   const [confirmAction, setConfirmAction] = useState<
     "ban" | "unban" | "delete" | "purge_data" | "reset_password" | null
   >(null);
+  const [confirmText, setConfirmText] = useState("");
+
+  /** Opens a confirmation and always starts with an empty typed token. */
+  const askConfirm = (action: typeof confirmAction) => {
+    setConfirmText("");
+    setConfirmAction(action);
+  };
 
   const isBanned = Boolean(authUser?.bannedUntil && new Date(authUser.bannedUntil).getTime() > Date.now());
 
+  /** Everything this user owns, counted from the live data bundle. */
+  const purgeInventory = useMemo(() => {
+    return {
+      budgets: data.budgets.filter((b) => b.owner_id === user.ownerId).length,
+      recurring: data.recurring.filter((r) => r.owner_id === user.ownerId).length,
+      customTypes: data.customDocumentTypes.filter((t) => t.owner_id === user.ownerId).length,
+      quota: data.aiQuotaUsage.filter((q) => q.user_id === user.ownerId).length,
+      files: data.documents.filter((d) => d.owner_id === user.ownerId && d.file_path).length,
+      transactions: data.transactions.filter((t) => t.owner_id === user.ownerId).length,
+    };
+  }, [data, user.ownerId]);
+
   const runUserAction = async (action: "ban" | "unban" | "delete" | "purge_data" | "reset_password") => {
     setConfirmAction(null);
+    setConfirmText("");
     setActionBusy(action);
     setActionError(null);
     try {
@@ -121,12 +144,12 @@ export function UserDetailModal({
               cascade). “Delete leftover data” removes those rows so this entry disappears.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button variant="danger" size="sm" onClick={() => setConfirmAction("purge_data")} disabled={actionBusy !== null}>
+              <Button variant="danger" size="sm" onClick={() => askConfirm("purge_data")} disabled={actionBusy !== null}>
                 {actionBusy === "purge_data" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eraser className="h-3.5 w-3.5" />}
                 Delete leftover data
               </Button>
               {authUser ? null : (
-                <Button variant="secondary" size="sm" onClick={() => setConfirmAction("delete")} disabled={actionBusy !== null}>
+                <Button variant="secondary" size="sm" onClick={() => askConfirm("delete")} disabled={actionBusy !== null}>
                   {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                   Try full delete again
                 </Button>
@@ -139,21 +162,21 @@ export function UserDetailModal({
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-black/40 p-3">
             <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Account actions</span>
             {isBanned ? (
-              <Button variant="secondary" size="sm" onClick={() => setConfirmAction("unban")} disabled={actionBusy !== null}>
+              <Button variant="secondary" size="sm" onClick={() => askConfirm("unban")} disabled={actionBusy !== null}>
                 {actionBusy === "unban" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
                 Unban
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" onClick={() => setConfirmAction("ban")} disabled={actionBusy !== null}>
+              <Button variant="secondary" size="sm" onClick={() => askConfirm("ban")} disabled={actionBusy !== null}>
                 {actionBusy === "ban" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
                 Ban user
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={() => setConfirmAction("reset_password")} disabled={actionBusy !== null}>
+            <Button variant="secondary" size="sm" onClick={() => askConfirm("reset_password")} disabled={actionBusy !== null}>
               {actionBusy === "reset_password" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
               Reset password
             </Button>
-            <Button variant="danger" size="sm" onClick={() => setConfirmAction("delete")} disabled={actionBusy !== null} className="ml-auto">
+            <Button variant="danger" size="sm" onClick={() => askConfirm("delete")} disabled={actionBusy !== null} className="ml-auto">
               {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               Delete user
             </Button>
@@ -164,38 +187,56 @@ export function UserDetailModal({
           <p className="text-[11px] text-amber-400">This account is banned (until {formatDate(authUser.bannedUntil)}).</p>
         ) : null}
 
-        {/* Delete confirmation */}
-        {confirmAction === "delete" ? (
+        {/* Delete / purge confirmations — show the exact inventory and require a typed token. */}
+        {confirmAction === "delete" || confirmAction === "purge_data" ? (
           <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
-            <p className="text-xs text-red-300">
-              Permanently delete {authUser?.email ?? user.ownerId.slice(0, 8)} and ALL their data? This cascades to
-              collections, documents, transactions and tier rows, and cannot be undone.
+            <p className="text-xs font-semibold text-red-300">
+              {confirmAction === "delete"
+                ? `Permanently delete ${authUser?.email ?? user.ownerId.slice(0, 8)} and EVERYTHING they own?`
+                : `Delete all leftover data of ${user.ownerId.slice(0, 8)}…?`}
             </p>
+            <ul className="mt-2 space-y-0.5 text-xs text-red-200/90">
+              <li>· {user.collectionsCount} collection{user.collectionsCount === 1 ? "" : "s"}</li>
+              <li>
+                · {user.documentsCount} document{user.documentsCount === 1 ? "" : "s"}
+                {purgeInventory.files > 0 ? ` (incl. ${purgeInventory.files} uploaded file${purgeInventory.files === 1 ? "" : "s"})` : ""}
+              </li>
+              <li>· {purgeInventory.transactions} transaction{purgeInventory.transactions === 1 ? "" : "s"}</li>
+              {purgeInventory.budgets > 0 ? <li>· {purgeInventory.budgets} budget{purgeInventory.budgets === 1 ? "" : "s"}</li> : null}
+              {user.envelopesCount > 0 ? (
+                <li>
+                  · {user.envelopesCount} savings envelope{user.envelopesCount === 1 ? "" : "s"} ({formatCurrency(user.savedTotal)}
+                  saved)
+                </li>
+              ) : null}
+              {purgeInventory.recurring > 0 ? <li>· {purgeInventory.recurring} recurring transaction{purgeInventory.recurring === 1 ? "" : "s"}</li> : null}
+              {purgeInventory.customTypes > 0 ? <li>· {purgeInventory.customTypes} custom document type{purgeInventory.customTypes === 1 ? "" : "s"}</li> : null}
+              {purgeInventory.quota > 0 ? <li>· {purgeInventory.quota} AI usage record{purgeInventory.quota === 1 ? "" : "s"}</li> : null}
+              {confirmAction === "delete" ? <li>· the auth account itself (sign-in permanently revoked)</li> : null}
+              <li>· support tickets they opened stay, but are anonymized</li>
+            </ul>
+            <p className="mt-2 text-xs text-red-300">
+              This cannot be undone. Type <span className="font-mono font-semibold">{CONFIRM_TOKEN}</span> to confirm.
+            </p>
+            <Input
+              className="mt-1.5"
+              placeholder={`Type ${CONFIRM_TOKEN} to enable`}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              disabled={actionBusy !== null}
+            />
             <div className="mt-2 flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setConfirmAction(null)} disabled={actionBusy !== null}>
                 Cancel
               </Button>
-              <Button variant="danger" size="sm" onClick={() => void runUserAction("delete")} disabled={actionBusy !== null}>
-                {actionBusy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                Delete permanently
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {confirmAction === "purge_data" ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
-            <p className="text-xs text-red-300">
-              Delete all leftover data rows for {user.ownerId.slice(0, 8)}… (documents, transactions, tiers, etc.)?
-              This cannot be undone.
-            </p>
-            <div className="mt-2 flex justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setConfirmAction(null)} disabled={actionBusy !== null}>
-                Cancel
-              </Button>
-              <Button variant="danger" size="sm" onClick={() => void runUserAction("purge_data")} disabled={actionBusy !== null}>
-                {actionBusy === "purge_data" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                Delete data
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => void runUserAction(confirmAction)}
+                disabled={actionBusy !== null || confirmText.trim().toUpperCase() !== CONFIRM_TOKEN}
+              >
+                {actionBusy === confirmAction ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                {confirmAction === "delete" ? "Delete permanently" : "Delete data"}
               </Button>
             </div>
           </div>

@@ -156,7 +156,8 @@ export interface ParsedUpgradeRequest {
 /**
  * Parses the "Paste user ID from upgrade email" quick action. Accepts:
  * - a raw user ID (`3f2a…-…`)
- * - the whole email subject line `Wazy upgrade request — {tier} — user {ID}`
+ * - the whole email subject line `FinAvigo upgrade request — {tier} — user {ID}`
+ *   (the legacy `Wazy upgrade request …` subject is still accepted)
  *   (em/en dashes or plain hyphens, any tier word)
  * - a pasted email body containing `User ID: …` and/or `Requested tier: …`
  */
@@ -170,8 +171,9 @@ export function parseUpgradeRequest(raw: string): ParsedUpgradeRequest | null {
   const direct = text.match(UUID_ONLY_RE);
   if (direct) return { userId: direct[0].toLowerCase(), tier: null };
 
-  // 2) The full subject line: "Wazy upgrade request - plus - user <ID>".
-  const subject = text.match(/wazy\s+upgrade\s+request\s*-\s*([a-z0-9_+-]+)\s*-\s*user\s+([0-9a-f-]{36})/i);
+  // 2) The full subject line: "FinAvigo upgrade request - plus - user <ID>"
+  //    (also accepts the legacy "Wazy upgrade request …" subject).
+  const subject = text.match(/(?:wazy|finavigo)\s+upgrade\s+request\s*-\s*([a-z0-9_+-]+)\s*-\s*user\s+([0-9a-f-]{36})/i);
   if (subject) {
     return { userId: subject[2].toLowerCase(), tier: toTier(subject[1]) };
   }

@@ -131,7 +131,10 @@ export default function SubscriptionsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, tiersRes] = await Promise.all([fetch("/api/admin-users"), fetch("/api/user-tiers")]);
+      const [usersRes, tiersRes] = await Promise.all([
+        fetch("/api/admin-users", { cache: "no-store" }),
+        fetch("/api/user-tiers", { cache: "no-store" }),
+      ]);
       const usersJson = await usersRes.json().catch(() => ({}));
       const tiersJson = await tiersRes.json().catch(() => ({}));
       const rawTiers: Record<string, string> = tiersJson.tiers ?? {};
@@ -247,7 +250,7 @@ export default function SubscriptionsPage() {
     setAuditLoading(true);
     setAuditMessage(null);
     try {
-      const res = await fetch("/api/tier-audit");
+      const res = await fetch("/api/tier-audit", { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       setAuditRows(json.rows ?? []);
       setAuditMessage(json.message ?? null);
@@ -292,12 +295,12 @@ export default function SubscriptionsPage() {
               Paste user ID from upgrade email
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Accepts a raw user ID or the whole subject line “Wazy upgrade request — plus — user &lt;ID&gt;”.
+              Accepts a raw user ID or the whole subject line “FinAvigo upgrade request — plus — user &lt;ID&gt;”.
             </p>
           </div>
           <Input
             className="w-full sm:w-96"
-            placeholder="Wazy upgrade request — plus — user 3f2a…"
+            placeholder="FinAvigo upgrade request — plus — user 3f2a…"
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
             onKeyDown={(e) => {

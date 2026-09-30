@@ -54,7 +54,10 @@ export default function AiUsagePage() {
 
   const loadMeta = useCallback(async () => {
     try {
-      const [usersRes, tiersRes] = await Promise.all([fetch("/api/admin-users"), fetch("/api/user-tiers")]);
+      const [usersRes, tiersRes] = await Promise.all([
+        fetch("/api/admin-users", { cache: "no-store" }),
+        fetch("/api/user-tiers", { cache: "no-store" }),
+      ]);
       const usersJson = await usersRes.json().catch(() => ({}));
       const tiersJson = await tiersRes.json().catch(() => ({}));
       setAuthUsers(usersJson.users ?? []);

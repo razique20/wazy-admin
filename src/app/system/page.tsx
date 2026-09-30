@@ -813,7 +813,7 @@ function AdminAuditViewer() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin-audit?limit=200");
+      const res = await fetch("/api/admin-audit?limit=200", { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       setRows(json.rows ?? []);
       setMessage(json.message ?? null);

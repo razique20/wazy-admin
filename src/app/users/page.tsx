@@ -52,7 +52,7 @@ export default function UsersPage() {
 
   const loadAuthUsers = async () => {
     try {
-      const res = await fetch("/api/admin-users");
+      const res = await fetch("/api/admin-users", { cache: "no-store" });
       const json = await res.json();
       setAuthUsers(json.users ?? []);
       setAuthSource(json.source ?? "unknown");

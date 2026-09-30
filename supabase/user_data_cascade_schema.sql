@@ -30,6 +30,10 @@
 --   document — so reminders are cleaned/checked via their document.
 -- * support_requests.user_id is `on delete set null` BY DESIGN (tickets
 --   survive their author); only truly dangling rows are cleaned.
+-- * Files the user uploaded to Storage (documents.file_path) are NOT
+--   removed by database cascades. The Admin Console's delete action
+--   removes them (see /api/admin-users/actions), or delete the bucket
+--   objects for the user manually in Dashboard → Storage.
 -- * This cleanup is direct SQL, so it is NOT recorded in
 --   public.admin_audit_log (the console only logs console-driven
 --   actions). If you want an audit entry, note the run in your ops log.
@@ -118,7 +122,9 @@ begin
       'category_budgets',
       'savings_envelopes',
       'recurring_transactions',
-      'custom_document_types'
+      'custom_document_types',
+      'ai_quota_usage',
+      'user_tier_audit'
     ])
   loop
     fk_name := null;
@@ -129,12 +135,16 @@ begin
       continue;
     end if;
 
+    -- ai_quota_usage and user_tier_audit key their user in user_id,
+    -- the document/finance tables use owner_id.
+    col := case when t in ('ai_quota_usage', 'user_tier_audit') then 'user_id' else 'owner_id' end;
+
     select exists (
       select 1 from information_schema.columns
-      where table_schema = 'public' and table_name = t and column_name = 'owner_id'
+      where table_schema = 'public' and table_name = t and column_name = col
     ) into has_col;
     if not has_col then
-      raise notice 'fk %: skipped (owner_id column missing)', t;
+      raise notice 'fk %: skipped (% column missing)', t, col;
       continue;
     end if;
 
@@ -142,7 +152,7 @@ begin
     from pg_constraint c
     join pg_attribute a
       on a.attrelid = c.conrelid
-     and a.attname = 'owner_id'
+     and a.attname = col
      and a.attnum = any(c.conkey)
     where c.conrelid = format('public.%I', t)::regclass
       and c.contype = 'f'
@@ -155,8 +165,8 @@ begin
       begin
         execute format('alter table public.%I drop constraint %I', t, fk_name);
         execute format(
-          'alter table public.%I add constraint %I foreign key (owner_id) references auth.users (id) on delete cascade',
-          t, t || '_owner_id_fkey'
+          'alter table public.%I add constraint %I foreign key (%I) references auth.users (id) on delete cascade',
+          t, t || '_' || col || '_fkey', col
         );
         raise notice 'fk %: upgraded to on delete cascade', t;
       exception when others then
@@ -165,8 +175,8 @@ begin
     else
       begin
         execute format(
-          'alter table public.%I add constraint %I foreign key (owner_id) references auth.users (id) on delete cascade',
-          t, t || '_owner_id_fkey'
+          'alter table public.%I add constraint %I foreign key (%I) references auth.users (id) on delete cascade',
+          t, t || '_' || col || '_fkey', col
         );
         raise notice 'fk %: added with on delete cascade', t;
       exception when others then
@@ -175,8 +185,28 @@ begin
     end if;
 
     -- Index the FK column so cascade deletes stay fast.
-    execute format('create index if not exists %I on public.%I (owner_id)', t || '_owner_id_idx', t);
+    execute format('create index if not exists %I on public.%I (%I)', t || '_' || col || '_idx', t, col);
   end loop;
+
+  -- user_tiers is keyed by user_id PK; its schema already declares
+  -- `on delete cascade`, but upgrade it if an older non-cascade FK exists.
+  if to_regclass('public.user_tiers') is not null then
+    select c.conname, c.confdeltype into fk_name, fk_del
+    from pg_constraint c
+    where c.conrelid = 'public.user_tiers'::regclass
+      and c.contype = 'f'
+      and c.confrelid = 'auth.users'::regclass
+    limit 1;
+    if fk_name is not null and fk_del <> 'c' then
+      begin
+        execute format('alter table public.user_tiers drop constraint %I', fk_name);
+        execute 'alter table public.user_tiers add constraint user_tiers_user_id_fkey foreign key (user_id) references auth.users (id) on delete cascade';
+        raise notice 'fk user_tiers: upgraded to on delete cascade';
+      exception when others then
+        raise warning 'fk user_tiers: could not upgrade existing constraint (%)', sqlerrm;
+      end;
+    end if;
+  end if;
 
   -- Reminders hang off documents: cascade document deletes into them.
   if to_regclass('public.reminders') is not null and to_regclass('public.documents') is not null then

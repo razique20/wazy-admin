@@ -113,9 +113,9 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
             </button>
             <div>
               <h1 className="text-sm font-semibold text-zinc-100 lg:hidden">
-                {NAV_ITEMS.find((i) => i.href === pathname)?.label ?? "Wazy Admin"}
+                {NAV_ITEMS.find((i) => i.href === pathname)?.label ?? "FinAvigo Admin"}
               </h1>
-              <p className="hidden text-xs text-zinc-500 lg:block">Wazy Admin · Document & Financial Intelligence</p>
+              <p className="hidden text-xs text-zinc-500 lg:block">FinAvigo Admin · Document & Financial Intelligence</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -143,10 +143,10 @@ function Brand() {
   return (
     <div className="flex h-14 items-center gap-2.5 border-b border-zinc-800/80 px-5">
       <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white">
-        <span className="text-sm font-bold text-black">W</span>
+        <span className="text-sm font-bold text-black">F</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-sm font-semibold tracking-tight text-white">Wazy</p>
+        <p className="text-sm font-semibold tracking-tight text-white">FinAvigo</p>
         <p className="text-[11px] text-zinc-500">Admin</p>
       </div>
     </div>

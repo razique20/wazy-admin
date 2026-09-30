@@ -104,6 +104,11 @@ describe("parseUpgradeRequest — quick action", () => {
     expect(parseUpgradeRequest(subject)).toEqual({ userId: USER_ID, tier: "plus" });
   });
 
+  it("parses the FinAvigo subject line too", () => {
+    const subject = `FinAvigo upgrade request — business — user ${USER_ID}`;
+    expect(parseUpgradeRequest(subject)).toEqual({ userId: USER_ID, tier: "business" });
+  });
+
   it("parses subject with en dashes, hyphen tiers and different casing", () => {
     const subject = `Wazy upgrade request – business – user ${USER_ID}`;
     expect(parseUpgradeRequest(subject)).toEqual({ userId: USER_ID, tier: "business" });

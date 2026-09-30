@@ -23,8 +23,8 @@ export interface WazyDataState {
   error: string | null;
   /** Per-table errors, e.g. when RLS blocks the anon key on a specific table. */
   tableErrors: Record<string, string>;
-  /** Where the data came from: server route with service role, or browser anon client. */
-  source: "service_role" | "anon" | "unknown";
+  /** Where the data came from: server route (direct PG or service role), or browser anon client. */
+  source: "direct_pg" | "service_role" | "anon" | "unknown";
   refresh: () => Promise<void>;
   lastUpdated: Date | null;
 }
@@ -82,7 +82,7 @@ export function useWazyData(): WazyDataState {
           data: Record<string, unknown[]>;
           errors: Record<string, string>;
           ok: boolean;
-          source: "service_role" | "anon";
+          source: "direct_pg" | "service_role" | "anon";
         };
         setData({
           collections: (json.data.collections ?? []) as Collection[],

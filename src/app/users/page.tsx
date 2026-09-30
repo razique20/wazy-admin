@@ -121,14 +121,14 @@ export default function UsersPage() {
   }, []);
 
   const users = useMemo(
-    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role", deletedUsers),
+    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role" || authSource === "direct_pg", deletedUsers),
     [data, authUsers, authSource, deletedUsers],
   );
   const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
   // Stale auth reads (replica lag / incidents) can list deleted users —
   // the headline stat must reflect LIVE accounts only.
   const liveCount = useMemo(() => users.filter((u) => !u.orphaned).length, [users]);
-  const authUnavailable = authSource !== "service_role";
+  const authUnavailable = authSource !== "service_role" && authSource !== "direct_pg";
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -210,7 +210,11 @@ export default function UsersPage() {
     <div className="space-y-4">
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Stat label="Registered users" value={String(totals.users)} hint={authSource === "service_role" ? "from auth.users" : "from data owners"} />
+        <Stat
+          label="Registered users"
+          value={String(totals.users)}
+          hint={authSource === "service_role" || authSource === "direct_pg" ? "from auth.users" : "from data owners"}
+        />
         <Stat label="Documents held" value={String(totals.documents)} tone="text-white" />
         <Stat label="Net cash flow (all users)" value={formatCurrency(totals.net)} tone={totals.net >= 0 ? "text-emerald-400" : "text-red-400"} />
         <Stat label="Urgent / expired docs" value={String(totals.urgent)} tone={totals.urgent > 0 ? "text-amber-400" : "text-white"} />
@@ -234,7 +238,7 @@ export default function UsersPage() {
         </Card>
       ) : null}
 
-      {authUnavailable && authSource !== "loading" ? (
+      {authUnavailable && authSource !== "loading" && authSource !== "direct_pg" ? (
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="pt-4">
             <p className="text-xs text-red-300">

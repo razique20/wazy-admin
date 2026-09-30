@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/primitives";
+import { SUPABASE_URL, isUsingDefaultProjectUrl, supabaseProjectRef } from "@/lib/supabase";
 
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -162,6 +163,7 @@ function SidebarFooter({
   onRefresh?: () => void;
   lastUpdated?: Date | null;
 }) {
+  const projectRef = supabaseProjectRef(SUPABASE_URL);
   return (
     <div className="border-t border-zinc-800/80 p-3">
       <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
@@ -172,8 +174,25 @@ function SidebarFooter({
           </span>
           <p className="text-xs font-medium text-zinc-300">Supabase connected</p>
         </div>
+        <p
+          className={cn("mt-1 truncate font-mono text-[10px]", isUsingDefaultProjectUrl ? "text-amber-400" : "text-zinc-500")}
+          title={
+            isUsingDefaultProjectUrl
+              ? "NEXT_PUBLIC_SUPABASE_URL is not set in this deployment — a hardcoded fallback project is being used. Local and production may be reading DIFFERENT databases."
+              : "Active Supabase project"
+          }
+        >
+          project {projectRef ?? "custom"}
+          {isUsingDefaultProjectUrl ? " (fallback!)" : ""}
+        </p>
         {lastUpdated ? (
           <p className="mt-1 text-[10px] text-zinc-600">Last sync {lastUpdated.toLocaleTimeString("en-GB")}</p>
+        ) : null}
+        {isUsingDefaultProjectUrl ? (
+          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[10px] leading-snug text-amber-300">
+            Env drift: set NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY in this deployment and redeploy.
+          </p>
+       
         ) : null}
         <Button variant="outline" size="sm" className="mt-3 w-full" onClick={onRefresh} disabled={loading}>
           <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />

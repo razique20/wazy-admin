@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/primitives";
 import { computeUserSummaries, type AccountStatus, type UserSummary } from "@/lib/users";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 import { cn } from "@/lib/cn";
 
 interface AuthUser {
@@ -214,7 +215,8 @@ export default function UsersPage() {
               auth.users is not available on this deployment
               {authMessage ? `: ${authMessage}` : "."} Account statuses below are unverified (shown as “status?”) and
               deleted-account detection is disabled. This is the usual reason a deleted user keeps appearing in
-              production but not locally: set SUPABASE_SERVICE_ROLE_KEY in the production environment and restart.
+              production but not locally: set SUPABASE_SERVICE_ROLE_KEY in the production environment and restart. Active
+              Supabase project: {supabaseProjectRef(SUPABASE_URL) ?? "custom URL"}.
             </p>
           </CardContent>
         </Card>

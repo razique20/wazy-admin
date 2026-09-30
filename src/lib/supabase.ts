@@ -6,9 +6,37 @@ declare global {
   }
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://jxyzmnaqukxvrcwolkil.supabase.co";
-const SUPABASE_ANON_KEY =
+/**
+ * ⚠️ FALLBACK PROJECT — used only when NEXT_PUBLIC_SUPABASE_URL is not set.
+ *
+ * Pointing different deployments at different Supabase projects makes deleted
+ * users "reappear" and data look inconsistent between local and production
+ * (each console then shows a different auth id for the same email). Always set
+ * the env vars per environment; the UI shows the active project ref in the
+ * sidebar so drift is visible at a glance.
+ */
+export const DEFAULT_SUPABASE_URL = "https://jxyzmnaqukxvrcwolkil.supabase.co";
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
+export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "sb_publishable_GgyDJs0On_xdoFr4QLxlWA_wyRlktjf";
+
+/** True when the configured URL is the hardcoded fallback, not an env var. */
+export const isUsingDefaultProjectUrl = !process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+/**
+ * Extracts the project ref from a Supabase URL (the `{ref}.supabase.co` host
+ * segment). Returns null for empty/invalid input. Pure so it is unit-testable.
+ */
+export function supabaseProjectRef(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const host = new URL(url).hostname;
+    const m = host.match(/^([a-z0-9]{20})\.(supabase\.(co|in|net)|supabase\.red)$/i);
+    return m ? m[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Browser-side Supabase client (anon key). RLS applies — fine for the admin

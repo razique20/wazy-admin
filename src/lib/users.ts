@@ -10,6 +10,8 @@ import { monthKey, toNumber } from "@/lib/format";
 export interface AuthUserLite {
   id: string;
   email: string | null;
+  /** When the auth row was created — used to detect stale reads after a delete. */
+  createdAt?: string | null;
   /** When the current ban (if any) lifts; a future date means currently banned. */
   bannedUntil?: string | null;
   /** Supabase sets this once the email/identity is confirmed. */
@@ -96,6 +98,15 @@ function touchLastActivity(summary: UserSummary, at: string | null | undefined) 
 }
 
 /**
+ * A user.delete audit entry, used to detect accounts that are already deleted
+ * but still returned by a stale auth.users read (GoTrue replica lag).
+ */
+export interface DeletedUserRecord {
+  deletedUserId: string;
+  performedAt: string;
+}
+
+/**
  * Builds one summary row per distinct owner found in auth users (optional) and
  * across collections / documents / transactions / budgets / envelopes / recurring.
  *
@@ -104,12 +115,17 @@ function touchLastActivity(summary: UserSummary, at: string | null | undefined) 
  * SUPABASE_SERVICE_ROLE_KEY — data-only rows get status "unknown" instead of
  * being silently treated as active, and orphaned detection stays off because
  * a missing auth row cannot be distinguished from an unfetchable list.
+ *
+ * `deletedUsers` carries user.delete audit entries: any owner that appears in
+ * it is treated as deleted even if the (possibly stale) auth list still
+ * contains it — the console then shows the truth instead of replica lag.
  */
 export function computeUserSummaries(
   data: WazyDataBundle,
   authUsers: AuthUserLite[] = [],
   reference = new Date(),
   authKnown: boolean = authUsers.length > 0,
+  deletedUsers: DeletedUserRecord[] = [],
 ): UserSummary[] {
   const byOwner = new Map<string, UserSummary>();
   const get = (ownerId: string): UserSummary => {
@@ -185,12 +201,27 @@ export function computeUserSummaries(
 
   const summaries = [...byOwner.values()];
   const authIds = new Set(authUsers.map((u) => u.id));
+  // Latest user.delete per user id — a stale auth read may still list the row.
+  const deletedAt = new Map<string, string>();
+  for (const d of deletedUsers) {
+    const prev = deletedAt.get(d.deletedUserId);
+    if (!prev || d.performedAt > prev) deletedAt.set(d.deletedUserId, d.performedAt);
+  }
+  // Auth rows created BEFORE the recorded delete are stale reads, not live
+  // accounts; rows (re)created AFTER the delete timestamp are genuine.
+  const staleAuthIds = new Set(
+    authUsers.filter((u) => {
+      const at = deletedAt.get(u.id);
+      return Boolean(at && u.createdAt && u.createdAt < at);
+    }).map((u) => u.id),
+  );
   for (const s of summaries) {
     // Data rows exist for this owner but the auth account is gone.
     s.orphaned = !authIds.has(s.ownerId) && authKnown;
     // Ghost user: the account was deleted but its data rows remain.
-    if (s.orphaned) {
+    if (s.orphaned || staleAuthIds.has(s.ownerId)) {
       s.accountStatus = "orphaned";
+      if (staleAuthIds.has(s.ownerId)) s.orphaned = true;
     } else if (!authIds.has(s.ownerId)) {
       // No auth entry AND we could not fetch the auth list — status unknown
       // (this is what production shows when the service-role key is missing).

@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/primitives";
-import { computeUserSummaries, type AccountStatus, type UserSummary } from "@/lib/users";
+import { computeUserSummaries, type DeletedUserRecord, type AccountStatus, type UserSummary } from "@/lib/users";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 import { cn } from "@/lib/cn";
@@ -80,6 +80,8 @@ export default function UsersPage() {
   const [purgeArmId, setPurgeArmId] = useState<string | null>(null);
   const [purgeBusyId, setPurgeBusyId] = useState<string | null>(null);
   const [purgeError, setPurgeError] = useState<string | null>(null);
+  /** user.delete audit entries — used to expose stale auth reads (replica lag). */
+  const [deletedUsers, setDeletedUsers] = useState<DeletedUserRecord[]>([]);
 
   const loadAuthUsers = async () => {
     try {
@@ -91,6 +93,23 @@ export default function UsersPage() {
     } catch {
       setAuthSource("error");
     }
+    // Reconcile against the audit log: GoTrue listUsers can serve a stale row
+    // for a user that was just deleted (replica lag) — flag those as deleted.
+    try {
+      const res = await fetch("/api/admin-audit?limit=200", { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      const rows = (json.rows ?? []) as { action: string; details: Record<string, unknown> }[];
+      setDeletedUsers(
+        rows
+          .filter((r) => r.action === "user.delete" && typeof r.details?.deletedUserId === "string")
+          .map((r) => ({
+            deletedUserId: r.details.deletedUserId as string,
+            performedAt: String(r.details?.performedAt ?? ""),
+          })),
+      );
+    } catch {
+      /* audit log unavailable — stale-read detection just stays off */
+    }
   };
 
   useEffect(() => {
@@ -98,8 +117,8 @@ export default function UsersPage() {
   }, []);
 
   const users = useMemo(
-    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role"),
-    [data, authUsers, authSource],
+    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role", deletedUsers),
+    [data, authUsers, authSource, deletedUsers],
   );
   const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
   const authUnavailable = authSource !== "service_role";

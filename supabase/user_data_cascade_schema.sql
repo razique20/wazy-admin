@@ -110,6 +110,7 @@ end $$;
 do $$
 declare
   t text;
+  col text;
   fk_name text;
   fk_del char;
   has_col boolean;

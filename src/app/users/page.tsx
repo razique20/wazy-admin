@@ -98,13 +98,17 @@ export default function UsersPage() {
     try {
       const res = await fetch("/api/admin-audit?limit=200", { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
-      const rows = (json.rows ?? []) as { action: string; details: Record<string, unknown> }[];
+      const rows = (json.rows ?? []) as {
+        action: string;
+        performed_at: string;
+        details: Record<string, unknown>;
+      }[];
       setDeletedUsers(
         rows
           .filter((r) => r.action === "user.delete" && typeof r.details?.deletedUserId === "string")
           .map((r) => ({
             deletedUserId: r.details.deletedUserId as string,
-            performedAt: String(r.details?.performedAt ?? ""),
+            performedAt: String(r.performed_at ?? ""),
           })),
       );
     } catch {
@@ -121,6 +125,9 @@ export default function UsersPage() {
     [data, authUsers, authSource, deletedUsers],
   );
   const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
+  // Stale auth reads (replica lag / incidents) can list deleted users —
+  // the headline stat must reflect LIVE accounts only.
+  const liveCount = useMemo(() => users.filter((u) => !u.orphaned).length, [users]);
   const authUnavailable = authSource !== "service_role";
 
   const rows = useMemo(() => {
@@ -147,12 +154,12 @@ export default function UsersPage() {
 
   const totals = useMemo(
     () => ({
-      users: users.length,
+      users: liveCount,
       documents: users.reduce((s, u) => s + u.documentsCount, 0),
       net: users.reduce((s, u) => s + u.netTotal, 0),
       urgent: users.reduce((s, u) => s + u.urgentExpiries + u.expiredDocuments, 0),
     }),
-    [users],
+    [users, liveCount],
   );
 
   const toggleSort = (field: SortField) =>

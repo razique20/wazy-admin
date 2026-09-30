@@ -44,7 +44,7 @@ describe("stale auth-read reconciliation (GoTrue replica lag)", () => {
     expect(users[0].accountStatus).toBe("orphaned");
   });
 
-  it("treats an auth row created AFTER the recorded delete as a genuine re-registration", () => {
+  it("flags any listed auth row with a delete record, even with recent createdAt (audit is source of truth)", () => {
     const users = computeUserSummaries(
       bundle(),
       [{ id: "u1", email: "x@y.com", createdAt: "2026-09-12T00:00:00Z", emailConfirmedAt: "2026-09-12T00:00:00Z" }],
@@ -52,19 +52,31 @@ describe("stale auth-read reconciliation (GoTrue replica lag)", () => {
       true,
       deletes,
     );
-    expect(users[0].orphaned).toBe(false);
-    expect(users[0].accountStatus).toBe("active");
+    expect(users[0].orphaned).toBe(true);
+    expect(users[0].accountStatus).toBe("orphaned");
   });
 
-  it("ignores the delete record when the auth row has no createdAt", () => {
+  it("keeps users without a delete record active", () => {
     const users = computeUserSummaries(
       bundle(),
       [{ id: "u1", email: "x@y.com", createdAt: null }],
       REF,
       true,
-      deletes,
+      [],
     );
     expect(users[0].accountStatus).toBe("unconfirmed");
+    expect(users[0].orphaned).toBe(false);
+  });
+
+  it("ignores malformed delete records with an empty performedAt", () => {
+    const users = computeUserSummaries(
+      bundle(),
+      [{ id: "u1", email: "x@y.com", emailConfirmedAt: "2026-01-01" }],
+      REF,
+      true,
+      [{ deletedUserId: "u1", performedAt: "" }],
+    );
+    expect(users[0].accountStatus).toBe("active");
     expect(users[0].orphaned).toBe(false);
   });
 });

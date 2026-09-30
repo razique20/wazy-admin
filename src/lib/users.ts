@@ -201,27 +201,23 @@ export function computeUserSummaries(
 
   const summaries = [...byOwner.values()];
   const authIds = new Set(authUsers.map((u) => u.id));
-  // Latest user.delete per user id — a stale auth read may still list the row.
-  const deletedAt = new Map<string, string>();
+  // Any user with a recorded user.delete audit entry is deleted. The audit
+  // log is append-only and service-role-written, so it outranks a possibly
+  // stale auth.users read (GoTrue replica lag / platform incidents have
+  // shown deleted rows for hours). An entry with an EMPTY performedAt is
+  // skipped; otherwise any entry counts — a genuine re-registration on a
+  // healthy database never collides with an old deleted id (UUIDs are
+  // unique), so timestamp comparison adds no safety, only false negatives.
+  const deletedIds = new Set<string>();
   for (const d of deletedUsers) {
-    const prev = deletedAt.get(d.deletedUserId);
-    if (!prev || d.performedAt > prev) deletedAt.set(d.deletedUserId, d.performedAt);
+    if (d.deletedUserId && d.performedAt) deletedIds.add(d.deletedUserId);
   }
-  // Auth rows created BEFORE the recorded delete are stale reads, not live
-  // accounts; rows (re)created AFTER the delete timestamp are genuine.
-  const staleAuthIds = new Set(
-    authUsers.filter((u) => {
-      const at = deletedAt.get(u.id);
-      return Boolean(at && u.createdAt && u.createdAt < at);
-    }).map((u) => u.id),
-  );
   for (const s of summaries) {
     // Data rows exist for this owner but the auth account is gone.
-    s.orphaned = !authIds.has(s.ownerId) && authKnown;
-    // Ghost user: the account was deleted but its data rows remain.
-    if (s.orphaned || staleAuthIds.has(s.ownerId)) {
+    s.orphaned = (!authIds.has(s.ownerId) && authKnown) || deletedIds.has(s.ownerId);
+    // Ghost user: deleted (per audit) or missing from auth while data rows remain.
+    if (s.orphaned) {
       s.accountStatus = "orphaned";
-      if (staleAuthIds.has(s.ownerId)) s.orphaned = true;
     } else if (!authIds.has(s.ownerId)) {
       // No auth entry AND we could not fetch the auth list — status unknown
       // (this is what production shows when the service-role key is missing).

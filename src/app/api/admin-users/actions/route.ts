@@ -18,6 +18,8 @@ interface UserActionResponse {
   userId?: string;
   /** Row counts removed by delete/purge_data, per table. */
   purged?: Record<string, number>;
+  /** Per-table delete failures during a purge — empty/silent failures hid stuck rows before. */
+  errors?: Record<string, string>;
   error?: string;
 }
 
@@ -123,7 +125,7 @@ export async function POST(request: Request) {
       //    ghost from the console, and for a live user it is what the FK
       //    cascade is expected to do (belt-and-braces for projects whose
       //    tables lack ON DELETE CASCADE).
-      const purged = await purgeUserData(admin, userId, email);
+      const { purged, errors: purgeErrors } = await purgeUserData(admin, userId, email);
 
       // 3) Remove the auth user when it still exists.
       if (authExists) {
@@ -142,6 +144,7 @@ export async function POST(request: Request) {
           email,
           authUserExisted: authExists,
           purgedRows: purged,
+          purgeErrors,
         },
       });
 
@@ -150,18 +153,37 @@ export async function POST(request: Request) {
         action,
         userId,
         purged,
+        errors: purgeErrors,
       });
     }
 
     if (action === "purge_data") {
       // Ghost-user cleanup: the auth user is already gone but data rows
       // remain. No auth call — just delete the orphaned rows.
-      const purged = await purgeUserData(admin, userId, null);
+      const { purged, errors: purgeErrors } = await purgeUserData(admin, userId, null);
       await writeAuditLog(admin, {
         action: "user.data_purge",
         userId: null,
-        details: { purgedUserId: userId, purgedRows: purged },
+        details: { purgedUserId: userId, purgedRows: purged, purgeErrors },
       });
+      // Surface partial failures loudly: silent purges made stuck rows look
+      // like a UI bug. ok:false + error text shows exactly what blocked it.
+      const failed = Object.entries(purgeErrors);
+      if (failed.length > 0) {
+        return NextResponse.json<UserActionResponse>(
+          {
+            ok: false,
+            action,
+            userId,
+            purged,
+            errors: purgeErrors,
+            error: `Purged ${Object.values(purged).reduce((s, n) => s + n, 0)} row(s) but some tables failed: ${failed
+              .map(([t, e]) => `${t}: ${e}`)
+              .join("; ")}`,
+          },
+          { status: 207 },
+        );
+      }
       return NextResponse.json<UserActionResponse>({ ok: true, action, userId, purged });
     }
 
@@ -219,8 +241,9 @@ async function purgeUserData(
   admin: ReturnType<typeof createServiceRoleClient>,
   userId: string,
   email: string | null,
-): Promise<Record<string, number>> {
+): Promise<{ purged: Record<string, number>; errors: Record<string, string> }> {
   const purged: Record<string, number> = {};
+  const errors: Record<string, string> = {};
 
   // 1) Reminders hang off documents — resolve this user's document ids and
   //    delete their reminders first, and remember the storage paths of any
@@ -237,7 +260,10 @@ async function purgeUserData(
   if (documentIds.length > 0) {
     const { data, error } = await admin.from("reminders").delete().in("document_id", documentIds).select("id");
     if (!error) purged["reminders"] = data?.length ?? 0;
-    else console.warn(`[purge] reminders: ${error.message}`);
+    else {
+      errors["reminders"] = error.message;
+      console.warn(`[purge] reminders: ${error.message}`);
+    }
   }
 
   // 2) Detach cross-user references so nothing dangles after the purge:
@@ -267,12 +293,14 @@ async function purgeUserData(
     try {
       const { data, error } = await admin.from(table).delete().eq(column, userId).select(pk);
       if (error) {
+        errors[table] = error.message;
         console.warn(`[purge] ${table}: ${error.message}`);
         continue;
       }
       if (data && data.length > 0) purged[table] = data.length;
     } catch (err) {
-      console.warn(`[purge] ${table}: ${err instanceof Error ? err.message : "unknown error"}`);
+      errors[table] = err instanceof Error ? err.message : "unknown error";
+      console.warn(`[purge] ${table}: ${errors[table]}`);
     }
   }
 
@@ -320,5 +348,5 @@ async function purgeUserData(
     console.warn(`[purge] admin_audit_log scrub: ${err instanceof Error ? err.message : "unknown error"}`);
   }
 
-  return purged;
+  return { purged, errors };
 }

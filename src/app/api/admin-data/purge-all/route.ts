@@ -89,9 +89,11 @@ export async function POST(request: Request) {
   try {
     // 1) Children first — reminders hang off documents; transactions may
     //    reference documents too. The APP_DATA_TABLES order encodes this.
+    //    `pk IS NOT NULL` matches every row without casting a literal to the
+    //    pk's type (a `pk <> '...'` sentinel breaks on uuid columns).
     for (const { table, pk } of APP_DATA_TABLES) {
       try {
-        const { data, error } = await admin.from(table).delete().neq(pk, "__impossible__").select(pk);
+        const { data, error } = await admin.from(table).delete().not(pk, "is", null).select(pk);
         if (error) {
           errors[table] = error.message;
           console.warn(`[purge-all] ${table}: ${error.message}`);

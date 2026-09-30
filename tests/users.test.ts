@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeUserSummaries } from "@/lib/users";
+import { APP_DATA_TABLES } from "@/lib/purge";
 import type { WazyDataBundle } from "@/lib/types";
 
 const REF = new Date("2026-09-15T12:00:00Z");
@@ -72,6 +73,17 @@ describe("computeUserSummaries", () => {
     );
     expect(users[0].orphaned).toBe(false);
     expect(users[0].accountStatus).toBe("unknown");
+  });
+
+  it("orders the full-wipe table list children-first so FKs never block", () => {
+    const order = APP_DATA_TABLES.map((t) => t.table);
+    // Reminders hang off documents — must go before documents.
+    expect(order.indexOf("reminders")).toBeLessThan(order.indexOf("documents"));
+    // Documents reference collections — must go before collections.
+    expect(order.indexOf("documents")).toBeLessThan(order.indexOf("collections"));
+    // Every entry has a non-empty pk and there are no duplicates.
+    for (const t of APP_DATA_TABLES) expect(t.pk.length).toBeGreaterThan(0);
+    expect(new Set(order).size).toBe(order.length);
   });
 
   it("treats an expired ban as active again (not banned)", () => {

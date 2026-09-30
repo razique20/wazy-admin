@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, Database, Download, FileJson, FileSpreadsheet, History, Loader2, Plus, RotateCcw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
+import { BellRing, Database, Download, FileJson, FileSpreadsheet, History, Loader2, Plus, RotateCcw, Rocket, Send, ShieldAlert, Trash2, TriangleAlert } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
 import { deleteRow, insertRow } from "@/lib/hooks";
 import { downloadFile, timestampSlug, toCSV } from "@/lib/export";
@@ -32,6 +32,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CustomDocumentType } from "@/lib/types";
 import { formatNumber, titleize } from "@/lib/format";
+import { APP_DATA_TABLES } from "@/lib/purge";
+import { SUPABASE_URL, hasServiceRoleKey, supabaseProjectRef } from "@/lib/supabase";
 
 type ExportKind = "documents" | "transactions";
 
@@ -70,6 +72,7 @@ export default function SystemPage() {
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
           <TabsTrigger value="versions">App Version</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
+          <TabsTrigger value="danger" className="text-red-400 data-[state=active]:text-red-300">Danger Zone</TabsTrigger>
         </TabsList>
 
         <TabsContent value="export">
@@ -97,6 +100,10 @@ export default function SystemPage() {
 
         <TabsContent value="audit">
           <AdminAuditViewer />
+        </TabsContent>
+
+        <TabsContent value="danger">
+          <DangerZone />
         </TabsContent>
       </Tabs>
     </div>
@@ -1016,17 +1023,233 @@ function CustomTypesManager({ types, onChanged }: { types: CustomDocumentType[];
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="info">custom-{t.id.slice(0, 8)}</Badge>
-                  <Button variant="danger" size="sm" onClick={() => void remove(t.id)} disabled={busy}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
-                  </Button>
-                </div>
+                  <Badge variant="info">custom-{t.id.slice(0, 8)}</Badge>                <Button variant="danger" size="sm" onClick={() => void remove(t.id)} disabled={busy}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
               </div>
-            ))}
+            </div>
+          ))}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/* ------------------------------- Danger zone ------------------------------ */
+
+const WIPE_CONFIRM_TOKEN = "PURGE ALL DATA";
+
+/**
+ * Critical-action gate: wipe ALL app data for every user. Requires:
+ *   1. acknowledgement checkbox (understands what is deleted),
+ *   2. typing the exact project ref (proves which database),
+ *   3. typing the exact confirmation token,
+ *   4. a press-and-hold button (2s) to fire.
+ */
+function DangerZone() {
+  const { data, refresh } = useWazy();
+  const projectRef = supabaseProjectRef(SUPABASE_URL);
+  const serviceConfigured = hasServiceRoleKey();
+
+  const [ack, setAck] = useState(false);
+  const [refText, setRefText] = useState("");
+  const [tokenText, setTokenText] = useState("");
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const totalRows =
+    data.collections.length +
+    data.documents.length +
+    data.transactions.length +
+    data.budgets.length +
+    data.envelopes.length +
+    data.recurring.length +
+    data.reminders.length +
+    data.customDocumentTypes.length +
+    data.aiQuotaUsage.length;
+
+  const canArm = serviceConfigured && ack && refText.trim() === projectRef && tokenText.trim() === WIPE_CONFIRM_TOKEN;
+
+  // Press-and-hold: fill progress over 2s, fire at 100%, drain on release.
+  useEffect(() => {
+    if (holdProgress <= 0 || holdProgress >= 100 || busy) return;
+    const t = window.setTimeout(() => setHoldProgress((p) => Math.min(p + 5, 100)), 100);
+    return () => window.clearTimeout(t);
+  }, [holdProgress, busy]);
+
+  useEffect(() => {
+    if (holdProgress >= 100 && !busy) void fire();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdProgress]);
+
+  const startHold = () => {
+    if (!canArm || busy) return;
+    setHoldProgress(1);
+  };
+  const cancelHold = () => {
+    if (!busy) setHoldProgress(0);
+  };
+
+  const fire = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin-data/purge-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: projectRef }),
+      });
+      const json = await res.json().catch(() => ({}));
+      const purged = json.purged as Record<string, number> | undefined;
+      const rowsWiped = purged ? Object.entries(purged).filter(([k]) => !k.startsWith("storage:")).reduce((s, [, n]) => s + n, 0) : 0;
+      if (res.ok && json.ok) {
+        setResult({ ok: true, text: `Wiped ${rowsWiped} data rows${json.storageRemoved ? ` + ${json.storageRemoved} storage files` : ""}. Users keep their accounts.` });
+        await refresh();
+      } else {
+        setResult({ ok: false, text: json.error ?? `Wipe failed (${res.status})` });
+      }
+    } catch (err) {
+      setResult({ ok: false, text: err instanceof Error ? err.message : "Wipe failed" });
+    } finally {
+      setBusy(false);
+      setHoldProgress(0);
+      setAck(false);
+      setTokenText("");
+    }
+  };
+
+  return (
+    <Card className="border-red-500/30">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-400" />
+          <CardTitle className="text-red-300">Danger Zone — Wipe all application data</CardTitle>
+        </div>
+        <CardDescription>
+          Deletes EVERY row in {APP_DATA_TABLES.length} app tables for ALL users and removes uploaded document files.
+          User accounts (auth.users) are NOT deleted — everyone keeps their login but loses all their data. This cannot
+          be undone.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Live row counts from the loaded bundle — what is about to be deleted. */}
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          <MiniCount label="Collections" value={data.collections.length} />
+          <MiniCount label="Documents" value={data.documents.length} />
+          <MiniCount label="Transactions" value={data.transactions.length} />
+          <MiniCount label="Budgets" value={data.budgets.length} />
+          <MiniCount label="Envelopes" value={data.envelopes.length} />
+          <MiniCount label="Recurring" value={data.recurring.length} />
+          <MiniCount label="Reminders" value={data.reminders.length} />
+          <MiniCount label="Custom types" value={data.customDocumentTypes.length} />
+          <MiniCount label="AI quota rows" value={data.aiQuotaUsage.length} />
+          <MiniCount label="Total rows" value={totalRows} emphasize />
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-black/40 p-3 text-xs text-zinc-400">
+          <p>
+            Target database: <span className="font-mono text-zinc-200">{projectRef ?? "custom URL"}</span> — confirm it matches the sidebar. Wiping the
+            wrong project cannot be undone.
+          </p>
+          {!serviceConfigured ? (
+            <p className="mt-2 text-amber-300">
+              SUPABASE_SERVICE_ROLE_KEY is not configured in this deployment — the wipe endpoint is disabled.
+            </p>
+          ) : null}
+          <p className="mt-2 text-zinc-500">
+            The wipe is recorded in the Audit Log as <span className="font-mono">data.wipe_all</span>. If the audit entry
+            is missing after a wipe, run supabase/admin_audit_log_wipe_all_migration.sql in this project.
+          </p>
+        </div>
+
+        {/* Gate 1 — acknowledgement */}
+        <label className="flex items-start gap-2 text-xs text-zinc-300">
+          <input
+            type="checkbox"
+            checked={ack}
+            onChange={(e) => setAck(e.target.checked)}
+            disabled={busy}
+            className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-950"
+          />
+          <span>
+            I understand this permanently deletes <span className="font-semibold text-red-300">all application data for every user</span> in
+            project <span className="font-mono">{projectRef ?? "(custom URL)"}</span>. Accounts stay; data is unrecoverable.
+          </span>
+        </label>
+
+        {/* Gate 2 — type the project ref */}
+        <div>
+          <p className="mb-1 text-xs text-zinc-400">
+            Type the project ref <span className="font-mono font-semibold text-zinc-200">{projectRef ?? "(custom URL)"}</span>
+          </p>
+          <Input
+            value={refText}
+            onChange={(e) => setRefText(e.target.value)}
+            placeholder={projectRef ?? "custom URL"}
+            disabled={busy}
+            className="max-w-sm font-mono"
+          />
+        </div>
+
+        {/* Gate 3 — type the token */}
+        <div>
+          <p className="mb-1 text-xs text-zinc-400">
+            Type <span className="font-mono font-semibold text-red-300">{WIPE_CONFIRM_TOKEN}</span>
+          </p>
+          <Input
+            value={tokenText}
+            onChange={(e) => setTokenText(e.target.value)}
+            placeholder={WIPE_CONFIRM_TOKEN}
+            disabled={busy}
+            className="max-w-sm"
+          />
+        </div>
+
+        {/* Gate 4 — press and hold */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={!canArm || busy}
+            onMouseDown={startHold}
+            onMouseUp={cancelHold}
+            onMouseLeave={cancelHold}
+            onTouchStart={startHold}
+            onTouchEnd={cancelHold}
+            className={cn(
+              "relative inline-flex h-11 select-none items-center justify-center gap-2 overflow-hidden rounded-lg border px-5 text-sm font-semibold transition-colors",
+              canArm && !busy
+                ? "border-red-500/50 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                : "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-600",
+            )}
+          >
+            <span
+              className="absolute inset-y-0 left-0 bg-red-500/40 transition-[width] duration-100"
+              style={{ width: `${holdProgress}%` }}
+            />
+            <span className="relative flex items-center gap-2">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {busy ? "Wiping…" : holdProgress > 0 ? "Keep holding…" : "Hold to wipe all data"}
+            </span>
+          </button>
+          {!canArm && !busy ? <p className="text-[11px] text-zinc-600">Complete all three gates above to arm the button.</p> : null}
+        </div>
+
+        {result ? (
+          <p className={cn("text-xs", result.ok ? "text-emerald-400" : "text-red-400")}>{result.text}</p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MiniCount({ label, value, emphasize = false }: { label: string; value: number; emphasize?: boolean }) {
+  return (
+    <div className={cn("rounded-lg border p-2 text-center", emphasize ? "border-red-500/30 bg-red-500/5" : "border-zinc-800 bg-black/40")}>
+      <p className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</p>
+      <p className={cn("mt-0.5 text-lg font-semibold", emphasize ? "text-red-300" : "text-zinc-100")}>{formatNumber(value)}</p>
+    </div>
   );
 }

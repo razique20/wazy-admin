@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = [
   "row.update",
   "row.delete",
   "user.data_purge",
+  "data.wipe_all",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

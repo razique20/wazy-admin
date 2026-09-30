@@ -25,7 +25,7 @@ create table if not exists public.admin_audit_log (
       'tier.grant', 'quota.reset', 'version.publish',
       'reminder.mark_sent', 'reminder.cleanup',
       'row.insert', 'row.update', 'row.delete',
-      'user.data_purge'
+      'user.data_purge', 'data.wipe_all'
     )),
   -- Optional scope
   user_id uuid references auth.users (id) on delete set null,

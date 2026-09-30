@@ -36,6 +36,25 @@ interface PurgeAllResponse {
  * which database they are pointing at. Recorded in admin_audit_log as
  * `data.wipe_all`.
  */
+/**
+ * GET /api/admin-data/purge-all
+ * Tells the Danger Zone UI whether the wipe endpoint is usable and which
+ * project ref must be typed. Client components cannot read server-only env
+ * vars, so they must ask the server (checking process.env in the browser
+ * always yields "not configured").
+ */
+export async function GET() {
+  return NextResponse.json<PurgeAllStatus>(
+    { configured: hasServiceRoleKey(), projectRef: supabaseProjectRef(SUPABASE_URL) },
+    { headers: NO_STORE },
+  );
+}
+
+interface PurgeAllStatus {
+  configured: boolean;
+  projectRef: string | null;
+}
+
 export async function POST(request: Request) {
   if (!hasServiceRoleKey()) {
     return NextResponse.json<PurgeAllResponse>(

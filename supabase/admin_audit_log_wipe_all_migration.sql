@@ -6,8 +6,35 @@
 -- button. Without it, a full wipe still executes but its audit entry is
 -- silently skipped (the CHECK constraint rejects 'data.wipe_all').
 --
--- Safe to re-run. Keeps existing rows; only widens the allowed values.
+-- STANDALONE: if the admin_audit_log table does not exist in this project
+-- yet (error 42P01: relation "public.admin_audit_log" does not exist),
+-- this script creates it first with the full action list — no need to run
+-- admin_audit_log_schema.sql separately.
+--
+-- Safe to re-run. Keeps existing rows; only creates what is missing and
+-- widens the allowed values.
 -- =====================================================================
+
+-- 0) Create the table when this project never had it (mirrors
+--    admin_audit_log_schema.sql exactly).
+create table if not exists public.admin_audit_log (
+  id bigint generated always as identity primary key,
+  action text not null,
+  user_id uuid references auth.users (id) on delete set null,
+  target_table text,
+  target_id text,
+  details jsonb not null default '{}'::jsonb,
+  performed_by text not null default 'admin-console',
+  performed_at timestamptz not null default now()
+);
+
+alter table public.admin_audit_log enable row level security;
+
+create index if not exists admin_audit_log_performed_at_idx
+  on public.admin_audit_log (performed_at desc);
+
+create index if not exists admin_audit_log_user_id_idx
+  on public.admin_audit_log (user_id) where user_id is not null;
 
 -- 1) Drop the old CHECK (no-op with IF EXISTS when the constraint is absent).
 alter table public.admin_audit_log

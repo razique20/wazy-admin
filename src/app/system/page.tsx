@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CustomDocumentType } from "@/lib/types";
 import { formatNumber, titleize } from "@/lib/format";
 import { APP_DATA_TABLES } from "@/lib/purge";
-import { SUPABASE_URL, hasServiceRoleKey, supabaseProjectRef } from "@/lib/supabase";
+import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 
 type ExportKind = "documents" | "transactions";
 
@@ -1050,8 +1050,28 @@ const WIPE_CONFIRM_TOKEN = "PURGE ALL DATA";
  */
 function DangerZone() {
   const { data, refresh } = useWazy();
-  const projectRef = supabaseProjectRef(SUPABASE_URL);
-  const serviceConfigured = hasServiceRoleKey();
+  // SUPABASE_SERVICE_ROLE_KEY is server-only — the browser cannot see it, so
+  // ask the API for the real configuration instead of checking process.env
+  // client-side (which always reports "not configured").
+  const [status, setStatus] = useState<{ configured: boolean; projectRef: string | null } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin-data/purge-all", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (alive) setStatus({ configured: Boolean(j.configured), projectRef: j.projectRef ?? null });
+      })
+      .catch(() => {
+        if (alive) setStatus({ configured: false, projectRef: null });
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const projectRef = status?.projectRef ?? supabaseProjectRef(SUPABASE_URL);
+  const serviceConfigured = status?.configured ?? false;
 
   const [ack, setAck] = useState(false);
   const [refText, setRefText] = useState("");
@@ -1154,9 +1174,12 @@ function DangerZone() {
             Target database: <span className="font-mono text-zinc-200">{projectRef ?? "custom URL"}</span> — confirm it matches the sidebar. Wiping the
             wrong project cannot be undone.
           </p>
-          {!serviceConfigured ? (
+          {!status ? (
+            <p className="mt-2 text-zinc-500">Checking deployment configuration…</p>
+          ) : !serviceConfigured ? (
             <p className="mt-2 text-amber-300">
-              SUPABASE_SERVICE_ROLE_KEY is not configured in this deployment — the wipe endpoint is disabled.
+              The server reports SUPABASE_SERVICE_ROLE_KEY is not configured in this deployment — the wipe endpoint is
+              disabled. Add it to the deployment&apos;s environment variables and redeploy.
             </p>
           ) : null}
           <p className="mt-2 text-zinc-500">

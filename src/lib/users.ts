@@ -1,10 +1,40 @@
 import type { WazyDataBundle } from "@/lib/types";
 import { monthKey, toNumber } from "@/lib/format";
 
+/**
+ * Minimal auth.users shape needed to derive the account status. Only `id` and
+ * `email` are required — the confirmation/ban fields are optional so callers
+ * with a plain {id, email} list keep working (status then degrades to
+ * "unconfirmed" for confirmed-less users).
+ */
+export interface AuthUserLite {
+  id: string;
+  email: string | null;
+  /** When the current ban (if any) lifts; a future date means currently banned. */
+  bannedUntil?: string | null;
+  /** Supabase sets this once the email/identity is confirmed. */
+  emailConfirmedAt?: string | null;
+}
+
+/**
+ * Account state of a user row, derived from auth.users (or its absence):
+ * - active:      auth account exists and its email is confirmed
+ * - banned:      auth account exists but is currently suspended
+ * - unconfirmed: auth account exists but the email is not confirmed
+ * - orphaned:    data rows exist but NO auth.users account — the account was
+ *                deleted while its data stayed behind (ghost user)
+ * - unknown:     the auth.users list is unavailable on this deployment
+ *                (e.g. SUPABASE_SERVICE_ROLE_KEY not configured), so the
+ *                account's existence cannot be verified
+ */
+export type AccountStatus = "active" | "banned" | "unconfirmed" | "orphaned" | "unknown";
+
 /** Per-user (owner) summary derived from all fetched tables. */
 export interface UserSummary {
   ownerId: string;
   email: string | null;
+  /** Derived account state shown to admins beside the email. */
+  accountStatus: AccountStatus;
   /**
    * True when the owner has data rows but no auth.users account — usually
    * left behind by an incomplete delete on projects without cascade FKs.
@@ -40,6 +70,7 @@ function blankSummary(ownerId: string): UserSummary {
   return {
     ownerId,
     email: null,
+    accountStatus: "active",
     collectionsCount: 0,
     personalCollections: 0,
     companyCollections: 0,
@@ -67,11 +98,18 @@ function touchLastActivity(summary: UserSummary, at: string | null | undefined) 
 /**
  * Builds one summary row per distinct owner found in auth users (optional) and
  * across collections / documents / transactions / budgets / envelopes / recurring.
+ *
+ * `authKnown` tells whether `authUsers` is the complete, trustworthy auth.users
+ * list (service-role fetch succeeded). When false — e.g. the deployment lacks
+ * SUPABASE_SERVICE_ROLE_KEY — data-only rows get status "unknown" instead of
+ * being silently treated as active, and orphaned detection stays off because
+ * a missing auth row cannot be distinguished from an unfetchable list.
  */
 export function computeUserSummaries(
   data: WazyDataBundle,
-  authUsers: { id: string; email: string | null }[] = [],
+  authUsers: AuthUserLite[] = [],
   reference = new Date(),
+  authKnown: boolean = authUsers.length > 0,
 ): UserSummary[] {
   const byOwner = new Map<string, UserSummary>();
   const get = (ownerId: string): UserSummary => {
@@ -83,10 +121,14 @@ export function computeUserSummaries(
     return s;
   };
 
-  // Register auth users even if they have no data yet.
+  // Register auth users even if they have no data yet, and derive their
+  // account status so admins can see banned/unconfirmed accounts at a glance.
+  const nowMs = reference.getTime();
   for (const u of authUsers) {
     const s = get(u.id);
     s.email = u.email;
+    const currentlyBanned = Boolean(u.bannedUntil && new Date(u.bannedUntil).getTime() > nowMs);
+    s.accountStatus = currentlyBanned ? "banned" : u.emailConfirmedAt ? "active" : "unconfirmed";
   }
 
   const thisMonth = monthKey(reference);
@@ -145,7 +187,15 @@ export function computeUserSummaries(
   const authIds = new Set(authUsers.map((u) => u.id));
   for (const s of summaries) {
     // Data rows exist for this owner but the auth account is gone.
-    s.orphaned = !authIds.has(s.ownerId) && authUsers.length > 0;
+    s.orphaned = !authIds.has(s.ownerId) && authKnown;
+    // Ghost user: the account was deleted but its data rows remain.
+    if (s.orphaned) {
+      s.accountStatus = "orphaned";
+    } else if (!authIds.has(s.ownerId)) {
+      // No auth entry AND we could not fetch the auth list — status unknown
+      // (this is what production shows when the service-role key is missing).
+      s.accountStatus = "unknown";
+    }
     s.netTotal = round2(s.incomeTotal - s.expensesTotal);
     s.incomeThisMonth = round2(s.incomeThisMonth);
     s.expensesThisMonth = round2(s.expensesThisMonth);

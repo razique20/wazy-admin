@@ -28,6 +28,61 @@ describe("computeUserSummaries", () => {
     expect(users[0]).toMatchObject({ ownerId: "u1", email: "a@b.com", documentsCount: 0 });
   });
 
+  it("derives accountStatus: active, banned, unconfirmed", () => {
+    const users = computeUserSummaries(
+      bundle(),
+      [
+        { id: "u1", email: "active@b.com", emailConfirmedAt: "2026-01-01" },
+        { id: "u2", email: "banned@b.com", emailConfirmedAt: "2026-01-01", bannedUntil: "2099-01-01" },
+        { id: "u3", email: "unconfirmed@b.com", emailConfirmedAt: null },
+      ],
+      REF,
+    );
+    const byId = Object.fromEntries(users.map((u) => [u.ownerId, u.accountStatus]));
+    expect(byId["u1"]).toBe("active");
+    expect(byId["u2"]).toBe("banned");
+    expect(byId["u3"]).toBe("unconfirmed");
+  });
+
+  it("marks users whose data rows outlive their auth account as orphaned/deleted", () => {
+    const users = computeUserSummaries(
+      bundle({
+        collections: [
+          { id: "c1", owner_id: "ghost", name: "Leftover", is_personal: true, created_at: "2026-01-01" },
+        ],
+      }),
+      [{ id: "u1", email: "a@b.com", emailConfirmedAt: "2026-01-01" }],
+      REF,
+    );
+    const ghost = users.find((u) => u.ownerId === "ghost");
+    expect(ghost?.orphaned).toBe(true);
+    expect(ghost?.accountStatus).toBe("orphaned");
+  });
+
+  it("marks data-only rows as unknown when the auth list is unavailable (authKnown=false)", () => {
+    const users = computeUserSummaries(
+      bundle({
+        collections: [
+          { id: "c1", owner_id: "mystery", name: "A", is_personal: true, created_at: "2026-01-01" },
+        ],
+      }),
+      [],
+      REF,
+      false, // auth list could not be fetched (e.g. service-role key missing in production)
+    );
+    expect(users[0].orphaned).toBe(false);
+    expect(users[0].accountStatus).toBe("unknown");
+  });
+
+  it("treats an expired ban as active again (not banned)", () => {
+    const users = computeUserSummaries(
+      bundle(),
+      [{ id: "u1", email: "a@b.com", emailConfirmedAt: "2026-01-01", bannedUntil: "2020-01-01" }],
+      REF,
+    );
+    expect(users[0].accountStatus).toBe("active");
+  });
+
   it("aggregates collections, documents and finance per owner", () => {
     const users = computeUserSummaries(
       bundle({

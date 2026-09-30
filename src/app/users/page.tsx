@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Users as UsersIcon } from "lucide-react";
+import { Eraser, Loader2, RefreshCw, Search, Users as UsersIcon } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
 import { UserDetailModal } from "@/components/users/user-detail-modal";
 import {
@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/primitives";
-import { computeUserSummaries, type UserSummary } from "@/lib/users";
+import { computeUserSummaries, type AccountStatus, type UserSummary } from "@/lib/users";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -34,6 +34,32 @@ interface AuthUser {
   emailConfirmedAt?: string | null;
   bannedUntil?: string | null;
 }
+
+/** Label + badge tone for each account status shown beside the email. */
+const ACCOUNT_STATUS_META: Record<
+  AccountStatus,
+  { label: string; variant: "success" | "danger" | "warning" | "neutral"; title: string }
+> = {
+  active: { label: "active", variant: "success", title: "Auth account exists and the email is confirmed." },
+  banned: { label: "banned", variant: "danger", title: "Auth account is suspended — sign-in blocked until the ban lifts." },
+  unconfirmed: {
+    label: "unconfirmed",
+    variant: "warning",
+    title: "Auth account exists but the email is not confirmed yet.",
+  },
+  orphaned: {
+    label: "deleted",
+    variant: "neutral",
+    title:
+      "Auth account no longer exists (deleted) but data rows remain — leftover data, not a cache. Use “Purge data” on this row to remove it.",
+  },
+  unknown: {
+    label: "status?",
+    variant: "neutral",
+    title:
+      "auth.users could not be read on this deployment (SUPABASE_SERVICE_ROLE_KEY missing or the API errored), so the account state cannot be verified.",
+  },
+};
 
 type SortField = "email" | "documentsCount" | "netTotal" | "lastActivity" | "expensesThisMonth";
 
@@ -49,6 +75,10 @@ export default function UsersPage() {
   });
   const [selected, setSelected] = useState<UserSummary | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  /** ownerId currently armed for inline purge (two-step: arm → confirm). */
+  const [purgeArmId, setPurgeArmId] = useState<string | null>(null);
+  const [purgeBusyId, setPurgeBusyId] = useState<string | null>(null);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
 
   const loadAuthUsers = async () => {
     try {
@@ -66,8 +96,12 @@ export default function UsersPage() {
     void loadAuthUsers();
   }, []);
 
-  const users = useMemo(() => computeUserSummaries(data, authUsers), [data, authUsers]);
+  const users = useMemo(
+    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role"),
+    [data, authUsers, authSource],
+  );
   const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
+  const authUnavailable = authSource !== "service_role";
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -104,6 +138,36 @@ export default function UsersPage() {
   const toggleSort = (field: SortField) =>
     setSort((s) => ({ field, dir: s.field === field && s.dir === "asc" ? "desc" : "asc" }));
 
+  /** One-click purge: first click arms the row, second click (within the armed state) fires it. */
+  const runInlinePurge = async (u: UserSummary) => {
+    if (purgeArmId !== u.ownerId) {
+      setPurgeArmId(u.ownerId);
+      setPurgeError(null);
+      return;
+    }
+    setPurgeArmId(null);
+    setPurgeBusyId(u.ownerId);
+    setPurgeError(null);
+    try {
+      const res = await fetch("/api/admin-users/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.ownerId, action: "purge_data" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        setPurgeError(json.error ?? `Purge failed (${res.status})`);
+        return;
+      }
+      setActionNotice(
+        `Purged leftover data for ${u.email ?? u.ownerId.slice(0, 8)} — the list refreshes automatically.`,
+      );
+      await Promise.all([refresh(), loadAuthUsers()]);
+    } finally {
+      setPurgeBusyId(null);
+    }
+  };
+
   if (error) {
     return (
       <Card className="border-red-500/30">
@@ -129,13 +193,28 @@ export default function UsersPage() {
         <p className="text-xs text-emerald-400">{actionNotice}</p>
       ) : null}
 
+      {purgeError ? <p className="text-xs text-red-400">{purgeError}</p> : null}
+
       {orphanedCount > 0 ? (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="pt-4">
             <p className="text-xs text-amber-300">
-              {orphanedCount} user{orphanedCount > 1 ? "s" : ""} have leftover data but no auth account (shown as
-              “orphaned”). Open them and use “Delete leftover data” to clean up — this usually means their auth
-              deletion didn&apos;t cascade.
+              {orphanedCount} deleted user{orphanedCount > 1 ? "s" : ""} still {orphanedCount > 1 ? "have" : "has"} leftover
+              data (marked “deleted” below) — this is leftover data, not a cache. Click “Purge data” on the row twice to
+              remove it.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {authUnavailable && authSource !== "loading" ? (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="pt-4">
+            <p className="text-xs text-red-300">
+              auth.users is not available on this deployment
+              {authMessage ? `: ${authMessage}` : "."} Account statuses below are unverified (shown as “status?”) and
+              deleted-account detection is disabled. This is the usual reason a deleted user keeps appearing in
+              production but not locally: set SUPABASE_SERVICE_ROLE_KEY in the production environment and restart.
             </p>
           </CardContent>
         </Card>
@@ -221,6 +300,7 @@ export default function UsersPage() {
                   <TableHead>
                     <Sort label="Last activity" field="lastActivity" sort={sort} onToggle={toggleSort} />
                   </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -232,10 +312,17 @@ export default function UsersPage() {
                           {initials(u.email)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-100">
-                            {u.email ?? "Unknown user"}
+                          <p className="flex items-center gap-2 truncate font-medium text-zinc-100">
+                            <span className="truncate">{u.email ?? "Unknown user"}</span>
+                            <Badge
+                              variant={ACCOUNT_STATUS_META[u.accountStatus].variant}
+                              title={ACCOUNT_STATUS_META[u.accountStatus].title}
+                              className="shrink-0"
+                            >
+                              {ACCOUNT_STATUS_META[u.accountStatus].label}
+                            </Badge>
                             {u.orphaned ? (
-                              <Badge variant="danger" className="ml-2" title="Data rows remain but no auth.users account exists (ghost user)">
+                              <Badge variant="danger" className="shrink-0" title="Data rows remain but no auth.users account exists (ghost user)">
                                 orphaned
                               </Badge>
                             ) : null}
@@ -245,10 +332,12 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-zinc-200">{u.collectionsCount}</span>
-                      <span className="ml-1.5 text-[11px] text-zinc-500">
-                        ({u.personalCollections}P / {u.companyCollections}C)
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-200">{u.collectionsCount}</span>
+                        <span className="text-[11px] text-zinc-500">
+                          ({u.personalCollections}P / {u.companyCollections}C)
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-zinc-200">{u.documentsCount}</span>
@@ -274,6 +363,33 @@ export default function UsersPage() {
                       </span>
                     </TableCell>
                     <TableCell>{formatDate(u.lastActivity)}</TableCell>
+                    <TableCell className="text-right">
+                      {u.orphaned ? (
+                        purgeBusyId === u.ownerId ? (
+                          <Button variant="danger" size="sm" disabled>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Purging…
+                          </Button>
+                        ) : (
+                          <Button
+                            variant={purgeArmId === u.ownerId ? "primary" : "danger"}
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation(); // don't open the detail modal
+                              void runInlinePurge(u);
+                            }}
+                            title={
+                              purgeArmId === u.ownerId
+                                ? "Click again to permanently delete all leftover rows for this user"
+                                : "Delete this user's leftover data rows (two clicks: arm, then confirm)"
+                            }
+                          >
+                            <Eraser className="h-3.5 w-3.5" />
+                            {purgeArmId === u.ownerId ? "Confirm purge" : "Purge data"}
+                          </Button>
+                        )
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

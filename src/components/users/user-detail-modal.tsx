@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, Button, EmptyState, Input } from "@/components/ui/primitives";
 import { useWazy } from "@/components/providers/data-provider";
-import type { UserSummary } from "@/lib/users";
+import type { UserSummary, AccountStatus } from "@/lib/users";
 import { formatCurrency, formatDate, titleize } from "@/lib/format";
 import { customTypeName } from "@/lib/domain";
 import type { DocumentStatus } from "@/lib/types";
@@ -29,6 +29,15 @@ const STATUS_VARIANT: Record<DocumentStatus, "success" | "danger" | "info" | "ne
   expired: "danger",
   renewed: "info",
   archived: "neutral",
+};
+
+/** Badge copy for the derived account status (mirrors the Users Directory). */
+const ACCOUNT_STATUS_META: Record<AccountStatus, { label: string; variant: "success" | "danger" | "warning" | "neutral" }> = {
+  active: { label: "active", variant: "success" },
+  banned: { label: "banned", variant: "danger" },
+  unconfirmed: { label: "unconfirmed", variant: "warning" },
+  orphaned: { label: "deleted", variant: "neutral" },
+  unknown: { label: "status?", variant: "neutral" },
 };
 
 export function UserDetailModal({
@@ -129,6 +138,9 @@ export function UserDetailModal({
               {initials(user.email)}
             </span>
             <span className="min-w-0 truncate">{user.email ?? shortId(user.ownerId)}</span>
+            <Badge variant={ACCOUNT_STATUS_META[user.accountStatus].variant} className="shrink-0">
+              {ACCOUNT_STATUS_META[user.accountStatus].label}
+            </Badge>
           </DialogTitle>
           <DialogDescription>
             Owner {shortId(user.ownerId)} · last activity {formatDate(user.lastActivity)}

@@ -295,12 +295,12 @@ export default function SubscriptionsPage() {
               Paste user ID from upgrade email
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Accepts a raw user ID or the whole subject line “FinAvigo upgrade request — plus — user &lt;ID&gt;”.
+              Accepts a raw user ID or the whole subject line “finavig upgrade request — plus — user &lt;ID&gt;”.
             </p>
           </div>
           <Input
             className="w-full sm:w-96"
-            placeholder="FinAvigo upgrade request — plus — user 3f2a…"
+            placeholder="finavig upgrade request — plus — user 3f2a…"
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
             onKeyDown={(e) => {

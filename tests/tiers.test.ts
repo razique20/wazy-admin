@@ -104,8 +104,8 @@ describe("parseUpgradeRequest — quick action", () => {
     expect(parseUpgradeRequest(subject)).toEqual({ userId: USER_ID, tier: "plus" });
   });
 
-  it("parses the FinAvigo subject line too", () => {
-    const subject = `FinAvigo upgrade request — business — user ${USER_ID}`;
+  it("parses the finavig subject line too", () => {
+    const subject = `finavig upgrade request — business — user ${USER_ID}`;
     expect(parseUpgradeRequest(subject)).toEqual({ userId: USER_ID, tier: "business" });
   });
 

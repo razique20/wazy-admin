@@ -5,8 +5,8 @@ import "./globals.css";
 import { WazyDataProvider } from "@/components/providers/data-provider";
 
 export const metadata: Metadata = {
-  title: "FinAvigo Admin Console",
-  description: "Document expiry tracking & financial intelligence for the FinAvigo platform",
+  title: "finavig Admin Console",
+  description: "Document expiry tracking & financial intelligence for the finavig platform",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

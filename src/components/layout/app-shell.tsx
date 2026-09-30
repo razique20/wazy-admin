@@ -113,9 +113,9 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
             </button>
             <div>
               <h1 className="text-sm font-semibold text-zinc-100 lg:hidden">
-                {NAV_ITEMS.find((i) => i.href === pathname)?.label ?? "FinAvigo Admin"}
+                {NAV_ITEMS.find((i) => i.href === pathname)?.label ?? "finavig Admin"}
               </h1>
-              <p className="hidden text-xs text-zinc-500 lg:block">FinAvigo Admin · Document & Financial Intelligence</p>
+              <p className="hidden text-xs text-zinc-500 lg:block">finavig Admin · Document & Financial Intelligence</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -146,7 +146,7 @@ function Brand() {
         <span className="text-sm font-bold text-black">F</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-sm font-semibold tracking-tight text-white">FinAvigo</p>
+        <p className="text-sm font-semibold tracking-tight text-white">finavig</p>
         <p className="text-[11px] text-zinc-500">Admin</p>
       </div>
     </div>

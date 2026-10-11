@@ -31,20 +31,57 @@ import { cn } from "@/lib/cn";
 
 type SortField = "display_name" | "expires_at" | "renewal_fee" | "created_at";
 
+// GCC country codes (matches mobile app: lib/models/gcc_country.dart)
+const GCC_COUNTRIES = [
+  { code: "AE", label: "UAE" },
+  { code: "SA", label: "Saudi Arabia" },
+  { code: "QA", label: "Qatar" },
+  { code: "KW", label: "Kuwait" },
+  { code: "BH", label: "Bahrain" },
+  { code: "OM", label: "Oman" },
+] as const;
+
 interface Filters {
   query: string;
   collection: string;
   status: string;
   docType: string;
+  country: string;
   from: string;
   to: string;
 }
 
-const INITIAL_FILTERS: Filters = { query: "", collection: "all", status: "all", docType: "all", from: "", to: "" };
+const INITIAL_FILTERS: Filters = { query: "", collection: "all", status: "all", docType: "all", country: "all", from: "", to: "" };
 
 export default function CollectionsPage() {
   const { data, loading, error } = useWazy();
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
+  
+  // Extract unique countries from documents (documents have location field with country info)
+  const countries = useMemo(() => {
+    const countrySet = new Set<string>();
+    for (const doc of data.documents) {
+      // Try to extract country from location field (e.g., "Dubai Municipality (Dubai)" or "UAE")
+      const loc = doc.location?.toLowerCase() ?? "";
+      if (loc.includes("uae") || loc.includes("united arab emirates") || loc.includes("dubai") || 
+          loc.includes("abu dhabi") || loc.includes("sharjah") || loc.includes("ajman") ||
+          loc.includes("umm al quwain") || loc.includes("ras al khaimah") || loc.includes("fujairah")) {
+        countrySet.add("AE");
+      } else if (loc.includes("saudi") || loc.includes("ksa") || loc.includes("riyadh") || 
+                 loc.includes("jeddah") || loc.includes("dammam")) {
+        countrySet.add("SA");
+      } else if (loc.includes("qatar") || loc.includes("doha")) {
+        countrySet.add("QA");
+      } else if (loc.includes("kuwait")) {
+        countrySet.add("KW");
+      } else if (loc.includes("bahrain")) {
+        countrySet.add("BH");
+      } else if (loc.includes("oman") || loc.includes("muscat")) {
+        countrySet.add("OM");
+      }
+    }
+    return ["all", ...Array.from(countrySet).sort()];
+  }, [data.documents]);
   const [sort, setSort] = useState<{ field: SortField; dir: "asc" | "desc" }>({
     field: "expires_at",
     dir: "asc",
@@ -60,6 +97,26 @@ export default function CollectionsPage() {
       if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
       if (filters.status !== "all" && d.status !== filters.status) return false;
       if (filters.docType !== "all" && d.doc_type !== filters.docType) return false;
+      if (filters.country !== "all") {
+        const loc = d.location?.toLowerCase() ?? "";
+        const countryMatch = filters.country === "AE" && (
+          loc.includes("uae") || loc.includes("united arab emirates") || loc.includes("dubai") ||
+          loc.includes("abu dhabi") || loc.includes("sharjah") || loc.includes("ajman") ||
+          loc.includes("umm al quwain") || loc.includes("ras al khaimah") || loc.includes("fujairah") ||
+          loc.includes("emirates") || !loc // UAE is default, no location = assume UAE
+        );
+        const saMatch = filters.country === "SA" && (
+          loc.includes("saudi") || loc.includes("ksa") || loc.includes("riyadh") ||
+          loc.includes("jeddah") || loc.includes("dammam") || loc.includes("khobar")
+        );
+        const qaMatch = filters.country === "QA" && (
+          loc.includes("qatar") || loc.includes("doha")
+        );
+        const kwMatch = filters.country === "KW" && loc.includes("kuwait");
+        const bhMatch = filters.country === "BH" && loc.includes("bahrain");
+        const omMatch = filters.country === "OM" && (loc.includes("oman") || loc.includes("muscat"));
+        if (!countryMatch && !saMatch && !qaMatch && !kwMatch && !bhMatch && !omMatch) return false;
+      }
       if (filters.from && d.expires_at && d.expires_at < filters.from) return false;
       if (filters.to && d.expires_at && d.expires_at > filters.to) return false;
       return true;
@@ -152,6 +209,18 @@ export default function CollectionsPage() {
               {docTypes.map((t) => (
                 <SelectItem key={t} value={t}>
                   {titleize(customTypeName(t, data.customDocumentTypes))}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filters.country} onValueChange={(v) => setFilters((f) => ({ ...f, country: v }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent>
+              {countries.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c === "all" ? "All countries" : GCC_COUNTRIES.find((g) => g.code === c)?.label ?? c}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -47,6 +47,7 @@ function doc(partial: Partial<Document>): Document {
     file_name: null,
     file_path: null,
     file_size: null,
+    location: null,
     created_at: "2026-01-01",
     updated_at: "2026-01-01",
     ...partial,

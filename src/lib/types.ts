@@ -39,6 +39,8 @@ export interface Document {
   file_name: string | null;
   file_path: string | null;
   file_size: number | null;
+  /** Issuing authority + jurisdiction (e.g. 'Dubai Municipality (Dubai)') */
+  location: string | null;
   created_at: string;
   updated_at: string;
 }

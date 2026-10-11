@@ -22,7 +22,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from "@/components/ui/primitives";
 import { computeKpis, computeMonthlyCashFlow, computeExpenseBreakdown, computeRenewalHorizon } from "@/lib/analytics";
 import { computeSupportStats } from "@/lib/support";
-import { quotaMonthKey, totalAiCalls } from "@/lib/ai-quota";
+import { quotaMonthKey, totalAiCalls, computeAiAdoption } from "@/lib/ai-quota";
 import { toTier, TIER_LABELS } from "@/lib/tiers";
 import { formatCurrency } from "@/lib/format";
 
@@ -59,6 +59,7 @@ interface AuthUser {
 export default function OverviewPage() {
   const { data, loading, error } = useWazy();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
+  const [, setActiveUsers] = useState<AuthUser[]>([]);
   const [tiers, setTiers] = useState<Record<string, string>>({});
   const [tierExpiries, setTierExpiries] = useState<Record<string, string>>({});
 
@@ -73,7 +74,17 @@ export default function OverviewPage() {
         const usersJson = await usersRes.json().catch(() => ({}));
         const tiersJson = await tiersRes.json().catch(() => ({}));
         if (cancelled) return;
-        setAuthUsers(usersJson.users ?? []);
+        const users = usersJson.users ?? [];
+        setAuthUsers(users);
+        // Active users: signed in within 30 days or created within 30 days
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+        setActiveUsers(
+          users.filter((u: AuthUser) => {
+            if (!u.lastSignInAt && !u.createdAt) return false;
+            const lastActivity = u.lastSignInAt ? new Date(u.lastSignInAt) : new Date(u.createdAt!);
+            return lastActivity >= thirtyDaysAgo;
+          })
+        );
         setTiers(tiersJson.tiers ?? {});
         setTierExpiries(tiersJson.expiries ?? {});
       } catch {
@@ -164,6 +175,11 @@ export default function OverviewPage() {
           subvalue="Across all users and AI features"
           icon={<Bot className="h-4 w-4" />}
           accent="blue"
+          loading={loading}
+        />
+        <AIAdaptationWidget
+          authUsers={authUsers}
+          aiQuotaUsage={data.aiQuotaUsage}
           loading={loading}
         />
       </div>
@@ -309,8 +325,48 @@ export default function OverviewPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </CardContent>
-      </Card>
+        </CardContent>          </Card>
     </div>
   );
 }
+
+/**
+ * AI Adaptation widget for the dashboard.
+ * Shows adoption rate and quick stats at a glance.
+ */
+function AIAdaptationWidget({
+  authUsers,
+  aiQuotaUsage,
+  loading,
+}: {
+  authUsers: AuthUser[];
+  aiQuotaUsage: import("@/lib/types").AiQuotaUsage[];
+  loading: boolean;
+}) {
+  const aiAdoption = useMemo(
+    () =>
+      authUsers.length > 0 && aiQuotaUsage.length > 0
+        ? computeAiAdoption(aiQuotaUsage, authUsers, quotaMonthKey())
+        : null,
+    [aiQuotaUsage, authUsers]
+  );
+
+  if (!aiAdoption) {
+    return null; // Don't show widget when no data
+  }
+
+  const exhaustedCount = aiAdoption.quotaExhaustion.filter((u) => u.status === "exhausted").length;
+  const warningCount = aiAdoption.quotaExhaustion.filter((u) => u.status === "warning").length;
+
+  return (
+    <KpiCard
+      title="AI Adoption Rate"
+      value={`${aiAdoption.adoptionRate.toFixed(1)}%`}
+      subvalue={`${aiAdoption.usersWithAiUsage} of ${aiAdoption.activeUsers} active users · ${exhaustedCount} exhausted${warningCount > 0 ? ` · ${warningCount} warning` : ""}`}
+      icon={<Bot className="h-4 w-4" />}
+      accent={aiAdoption.adoptionRate > 20 ? "emerald" : "blue"}
+      loading={loading}
+      />
+  );
+}
+

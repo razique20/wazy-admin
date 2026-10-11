@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   AiQuotaUsage,
+  AppUsageStats,
   AppVersion,
   CategoryBudget,
   Collection,
@@ -41,6 +42,7 @@ const EMPTY_BUNDLE: WazyDataBundle = {
   supportRequests: [],
   aiQuotaUsage: [],
   appVersions: [],
+  appUsageStats: [],
 };
 
 const FETCH_SPEC: { key: keyof WazyDataBundle; table: string; order: string; asc: boolean }[] = [
@@ -55,6 +57,7 @@ const FETCH_SPEC: { key: keyof WazyDataBundle; table: string; order: string; asc
   { key: "supportRequests", table: "support_requests", order: "created_at", asc: false },
   { key: "aiQuotaUsage", table: "ai_quota_usage", order: "updated_at", asc: false },
   { key: "appVersions", table: "app_versions", order: "platform", asc: true },
+  { key: "appUsageStats", table: "app_usage_stats", order: "last_app_open", asc: false },
 ];
 
 /**
@@ -96,6 +99,7 @@ export function useWazyData(): WazyDataState {
           supportRequests: (json.data.supportRequests ?? []) as SupportRequest[],
           aiQuotaUsage: (json.data.aiQuotaUsage ?? []) as AiQuotaUsage[],
           appVersions: (json.data.appVersions ?? []) as AppVersion[],
+          appUsageStats: (json.data.appUsageStats ?? []) as AppUsageStats[],
         });
         setTableErrors(json.errors ?? {});
         setSource(json.source);
@@ -122,7 +126,10 @@ export function useWazyData(): WazyDataState {
       const errors: Record<string, string> = {};
       for (const r of results) {
         if (r.error) errors[r.key as string] = r.error;
-        else next[r.key] = (r.rows ?? []) as never;
+        else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          next[r.key] = (r.rows ?? []) as any;
+        }
       }
       setData(next);
       setTableErrors(errors);

@@ -17,6 +17,7 @@ function bundle(partial: Partial<WazyDataBundle> = {}): WazyDataBundle {
     supportRequests: [],
     aiQuotaUsage: [],
     appVersions: [],
+    appUsageStats: [],
     ...partial,
   };
 }

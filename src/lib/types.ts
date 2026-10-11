@@ -210,4 +210,14 @@ export interface WazyDataBundle {
   supportRequests: SupportRequest[];
   aiQuotaUsage: AiQuotaUsage[];
   appVersions: AppVersion[];
+  appUsageStats: AppUsageStats[];
+}
+
+export interface AppUsageStats {
+  user_id: string;
+  platform: "ios" | "android" | "web";
+  app_version: string;
+  last_app_open: string | null;
+  first_seen: string;
+  total_sessions: number;
 }

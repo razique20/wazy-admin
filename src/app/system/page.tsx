@@ -71,6 +71,7 @@ export default function SystemPage() {
           <TabsTrigger value="types">Custom Doc Types</TabsTrigger>
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
           <TabsTrigger value="versions">App Version</TabsTrigger>
+          <TabsTrigger value="app-health">App Health</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
           <TabsTrigger value="danger" className="text-red-400 data-[state=active]:text-red-300">Danger Zone</TabsTrigger>
         </TabsList>
@@ -96,6 +97,10 @@ export default function SystemPage() {
 
         <TabsContent value="versions">
           <AppVersionManager />
+        </TabsContent>
+
+        <TabsContent value="app-health">
+          <AppHealthDashboard />
         </TabsContent>
 
         <TabsContent value="audit">
@@ -1275,4 +1280,12 @@ function MiniCount({ label, value, emphasize = false }: { label: string; value: 
       <p className={cn("mt-0.5 text-lg font-semibold", emphasize ? "text-red-300" : "text-zinc-100")}>{formatNumber(value)}</p>
     </div>
   );
+}
+
+/* ------------------------- App Health Dashboard ------------------------- */
+
+import AppHealthPage from "./app-health/page";
+
+function AppHealthDashboard() {
+  return <AppHealthPage />;
 }

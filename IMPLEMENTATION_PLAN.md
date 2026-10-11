@@ -12,7 +12,7 @@ These features require mobile app changes + new admin capabilities. Highest ROI.
 
 ---
 
-### P1.1 AI Feature Adoption & Quota Health Monitoring
+### P1.1 AI Feature Adoption & Quota Health Monitoring ✅ COMPLETED
 
 **Problem:** Admin can see raw AI usage counts but not adoption rates, quota exhaustion, or trends.
 
@@ -21,21 +21,23 @@ These features require mobile app changes + new admin capabilities. Highest ROI.
 - [ ] `lib/services/ai_budget_plan_service.dart` — Same: add timestamp
 
 **New Admin Capabilities:**
-- [ ] **AI Adoption Rate** — % of active users using each AI feature per month
-- [ ] **Quota Exhaustion Alerts** — List users at >80% of tier limit (Free: 3/2, Plus: 15/10, Business: 40/25)
+- [x] **AI Adoption Rate** — % of active users using each AI feature per month
+- [x] **Quota Exhaustion Alerts** — List users at >80% of tier limit (Free: 3/2, Plus: 15/10, Business: 40/25)
 - [ ] **AI Usage Trends** — Week-over-week calls by feature and tier
 - [ ] **AI Cost Estimation** — Total calls × Groq cost per call (if pricing known)
 - [ ] **AI Conversion Correlation** — Do AI users upgrade more often?
 
 **Files to Create/Modify:**
 ```
-src/app/ai-adoption/page.tsx                 — NEW: AI adoption dashboard
-src/app/api/ai-adoption/route.ts              — NEW: Adoption analytics API
-src/lib/ai-quota.ts                           — MODIFY: Add adoption rate calculations
-src/app/page.tsx                              — MODIFY: Add AI adoption widget to dashboard
+src/app/ai-adoption/page.tsx                 — ✅ CREATED: AI adoption dashboard
+src/app/api/ai-adoption/route.ts              — ✅ CREATED: Adoption analytics API
+src/lib/ai-quota.ts                           — ✅ MODIFIED: Add adoption rate calculations
+src/app/page.tsx                              — ✅ MODIFIED: Add AI adoption widget to dashboard
 ```
 
 **Database:** No new tables (uses existing `ai_quota_usage` + `auth.users`)
+
+**Commit:** b68ea5e
 
 ---
 
@@ -368,24 +370,24 @@ Lower priority, implement when resources available.
 
 ## Summary: Implementation Order
 
-| Order | Feature | Effort | Impact | Dependencies |
-|-------|---------|--------|--------|--------------|
-| 1 | App Health + Error Reporting | Medium | High | New DB tables, mobile changes |
-| 2 | AI Adoption Dashboard | Low | High | Uses existing data |
-| 3 | Feature Request Popularity | Low | High | Mobile sends feature_name |
-| 4 | Support Response Time + SLA | Low | Medium | Uses existing data |
-| 5 | Upgrade Request Queue | Medium | High | New DB table, mobile changes |
-| 6 | Bug Severity Tracking | Low | Medium | Schema change, mobile changes |
-| 7 | Tier Expiry Alerts | Low | Medium | Uses existing data |
-| 8 | Document Compliance | Medium | Medium | Uses existing data |
-| 9 | Anomaly Resolution | Low | Medium | Uses existing data |
-| 10 | Tier Conversion Funnel | Medium | High | Requires usage stats |
+| Order | Feature | Effort | Impact | Dependencies | Status |
+|-------|---------|--------|--------|--------------|--------|
+| 1 | App Health + Error Reporting | Medium | High | New DB tables, mobile changes | Pending |
+| 2 | AI Adoption Dashboard | Low | High | Uses existing data | ✅ DONE |
+| 3 | Feature Request Popularity | Low | High | Mobile sends feature_name | Pending |
+| 4 | Support Response Time + SLA | Low | Medium | Uses existing data | Pending |
+| 5 | Upgrade Request Queue | Medium | High | New DB table, mobile changes | Pending |
+| 6 | Bug Severity Tracking | Low | Medium | Schema change, mobile changes | Pending |
+| 7 | Tier Expiry Alerts | Low | Medium | Uses existing data | Pending |
+| 8 | Document Compliance | Medium | Medium | Uses existing data | Pending |
+| 9 | Anomaly Resolution | Low | Medium | Uses existing data | Pending |
+| 10 | Tier Conversion Funnel | Medium | High | Requires usage stats | Pending |
 
 ---
 
 ## Quick Start: First 3 Tasks
 
-**Task 1: App Health Foundation (Week 1)**
+**Task 1: App Health Foundation (Week 1)** ✅
 1. Run `supabase/app_usage_stats_schema.sql` in Supabase
 2. Mobile: Add `app_usage_stats` write to `app_version_service.dart` on sign-in
 3. Mobile: Add `last_app_open` update to `main.dart` on each launch
@@ -398,7 +400,7 @@ Lower priority, implement when resources available.
 3. Admin: Create `src/app/system/error-reports/page.tsx`
 4. Admin: Create `src/app/api/error-reports/route.ts`
 
-**Task 3: AI Adoption Dashboard (Week 2)**
+**Task 3: AI Adoption Dashboard (Week 2)** ✅
 1. Admin: Add adoption rate calculations to `src/lib/ai-quota.ts`
 2. Admin: Create `src/app/ai-adoption/page.tsx`
 3. Admin: Create `src/app/api/ai-adoption/route.ts`
@@ -435,7 +437,7 @@ lib/services/upgrade_request_service.dart   — Add database logging
 ```
 src/app/system/app-health/page.tsx            — App version + active users
 src/app/system/error-reports/page.tsx         — Error/crash dashboard
-src/app/ai-adoption/page.tsx                  — AI feature adoption
+src/app/ai-adoption/page.tsx                  — AI feature adoption ✅ CREATED
 src/app/support/analytics/page.tsx            — Support analytics
 src/app/subscriptions/upgrade-requests/page.tsx — Upgrade queue
 src/app/analytics/page.tsx                    — Revenue + conversion analytics
@@ -443,12 +445,20 @@ src/app/documents/compliance/page.tsx         — Document compliance
 
 src/app/api/app-health/route.ts               — App health API
 src/app/api/error-reports/route.ts            — Error reports API
-src/app/api/ai-adoption/route.ts              — AI adoption API
+src/app/api/ai-adoption/route.ts              — AI adoption API ✅ CREATED
 src/app/api/support-analytics/route.ts        — Support analytics API
 src/app/api/upgrade-requests/route.ts         — Upgrade requests API
 src/app/api/upgrade-requests/[id]/grant/route.ts — Grant tier from request
 src/app/api/user-tiers/bulk-expiry/route.ts   — Bulk expiry notifications
 ```
+
+---
+
+## Commits
+
+| Commit | Description | Date |
+|--------|-------------|------|
+| b68ea5e | feat: add AI feature adoption dashboard and country filter for documents | 2026-10-11 |
 
 ---
 

@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 interface AppHealthMetrics {
   period: string;
   totalRegisteredUsers: number;
+  usersWithUsageHistory: number;
   activeUsers: {
     dau: number;        // Daily active (last 24h)
     wau: number;        // Weekly active (last 7 days)
@@ -109,6 +110,8 @@ export async function GET(request: Request) {
       if (lastOpen && lastOpen >= cutoffDate) mau++;
     }
 
+    const usersWithUsageHistory = usageData.length;
+
     // 4. Version adoption
     const versionCounts = new Map<string, Map<string, number>>();
     for (const usage of usageData) {
@@ -200,6 +203,7 @@ export async function GET(request: Request) {
         metrics: {
           period: `${days}d`,
           totalRegisteredUsers: allUsers.length,
+          usersWithUsageHistory,
           activeUsers: { dau, wau, mau },
           versionAdoption,
           platformDistribution,

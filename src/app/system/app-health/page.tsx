@@ -36,6 +36,7 @@ interface ForceUpdateStatus {
 interface AppHealthMetrics {
   period: string;
   totalRegisteredUsers: number;
+  usersWithUsageHistory: number;
   activeUsers: {
     dau: number;
     wau: number;
@@ -210,7 +211,7 @@ export default function AppHealthPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Active Users Overview</CardTitle>
-              <CardDescription>Daily, weekly, and monthly active users for the selected period.</CardDescription>
+              <CardDescription>Daily, weekly, and monthly active users for the selected period. Percentages are relative to users with usage history.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
@@ -219,8 +220,8 @@ export default function AppHealthPage() {
                   <p className="text-3xl font-bold text-emerald-400">{formatNumber(activeMetrics.activeUsers.dau)}</p>
                   <p className="text-sm text-zinc-500 mt-1">Daily Active</p>
                   <p className="text-xs text-zinc-600 mt-1">
-                    {activeMetrics.totalRegisteredUsers > 0
-                      ? `${((activeMetrics.activeUsers.dau / activeMetrics.totalRegisteredUsers) * 100).toFixed(1)}% of registered`
+                    {activeMetrics.usersWithUsageHistory > 0
+                      ? `${((activeMetrics.activeUsers.dau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}
                   </p>
                 </div>
@@ -229,8 +230,8 @@ export default function AppHealthPage() {
                   <p className="text-3xl font-bold text-blue-400">{formatNumber(activeMetrics.activeUsers.wau)}</p>
                   <p className="text-sm text-zinc-500 mt-1">Weekly Active</p>
                   <p className="text-xs text-zinc-600 mt-1">
-                    {activeMetrics.totalRegisteredUsers > 0
-                      ? `${((activeMetrics.activeUsers.wau / activeMetrics.totalRegisteredUsers) * 100).toFixed(1)}% of registered`
+                    {activeMetrics.usersWithUsageHistory > 0
+                      ? `${((activeMetrics.activeUsers.wau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}
                   </p>
                 </div>
@@ -239,8 +240,8 @@ export default function AppHealthPage() {
                   <p className="text-3xl font-bold text-white">{formatNumber(activeMetrics.activeUsers.mau)}</p>
                   <p className="text-sm text-zinc-500 mt-1">Monthly Active</p>
                   <p className="text-xs text-zinc-600 mt-1">
-                    {activeMetrics.totalRegisteredUsers > 0
-                      ? `${((activeMetrics.activeUsers.mau / activeMetrics.totalRegisteredUsers) * 100).toFixed(1)}% of registered`
+                    {activeMetrics.usersWithUsageHistory > 0
+                      ? `${((activeMetrics.activeUsers.mau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}
                   </p>
                 </div>

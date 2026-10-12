@@ -12,6 +12,7 @@ import {
   CreditCard,
   LifeBuoy,
   Bot,
+  Activity,
   Settings2,
   Menu,
   X,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { href: "/finance", label: "Finance Ledger", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },
   { href: "/system", label: "System & Data", icon: Settings2 },
+  { href: "/system/app-health", label: "App Health", icon: Activity },
 ] as const;
 
 interface AppShellProps {

@@ -41,7 +41,7 @@ src/app/page.tsx                              — ✅ MODIFIED: Add AI adoption 
 
 ---
 
-### P1.2 App Health & Version Adoption Tracking
+### P1.2 App Health & Version Adoption Tracking ✅
 
 **Problem:** Admin has no visibility into app version adoption, active users, or platform distribution.
 
@@ -55,7 +55,7 @@ src/app/page.tsx                              — ✅ MODIFIED: Add AI adoption 
 -- supabase/app_usage_stats_schema.sql
 CREATE TABLE public.app_usage_stats (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL,                    -- 'ios', 'android', 'web'
+  platform TEXT NOT NULL,
   app_version TEXT NOT NULL,                 -- e.g. '1.0.0'
   last_app_open TIMESTAMPTZ,
   first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -64,19 +64,19 @@ CREATE TABLE public.app_usage_stats (
 ```
 
 **New Admin Capabilities:**
-- [ ] **Version Adoption Chart** — % users on each version (v1.0.0: 45%, v1.1.0: 35%...)
-- [ ] **Platform Distribution** — iOS vs Android vs Web breakdown
-- [ ] **Active Users (DAU/WAU/MAU)** — Daily, weekly, monthly active users
+- [x] **Version Adoption Chart** — % users on each version (v1.0.0: 45%, v1.1.0: 35%...)
+- [x] **Platform Distribution** — iOS vs Android vs Web breakdown
+- [x] **Active Users (DAU/WAU/MAU)** — Daily, weekly, monthly active users
 - [ ] **Retention Rates** — Day-1, Day-7, Day-30 retention
-- [ ] **Force Update Compliance** — Users blocked vs upgraded after force update
+- [x] **Force Update Compliance** — Users blocked vs upgraded after force update
 
-**Files to Create/Modify:**
-```
-src/app/system/app-health/page.tsx            — NEW: App health dashboard
-src/app/api/app-health/route.ts               — NEW: App health API
-src/app/system/page.tsx                       — MODIFY: Add app health tab
-supabase/app_usage_stats_schema.sql           — NEW: Usage stats table
-```
+**Admin Console Added:**
+- [x] Link in sidebar: `/system/app-health`
+- [x] `src/app/system/app-health/page.tsx`
+- [x] `src/app/api/app-health/route.ts`
+- [x] `src/app/system/page.tsx` tab + `src/components/layout/app-shell.tsx` nav link
+
+**Commit:** a1ea9c3
 
 ---
 

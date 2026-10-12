@@ -71,7 +71,7 @@ CREATE TABLE public.app_usage_stats (
 - [x] **Force Update Compliance** — Users blocked vs upgraded after force update
 
 **Admin Console Added:**
-- [x] Link in sidebar: `/system/app-health`
+- [x] Sidebar link in `src/components/layout/app-shell.tsx`: `/system/app-health`
 - [x] `src/app/system/app-health/page.tsx`
 - [x] `src/app/api/app-health/route.ts`
 - [x] `src/app/system/page.tsx` tab + `src/components/layout/app-shell.tsx` nav link

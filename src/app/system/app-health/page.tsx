@@ -82,28 +82,92 @@ export default function AppHealthPage() {
     setError(null);
     try {
       const res = await fetch(`/api/app-health?period=${period}d&includeErrorReports=true`, { cache: "no-store" });
-      const json: AppHealthApiResponse = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error ?? "Failed to load app health data");
-        setMetrics(null);
+      const json: unknown = await res.json();
+
+      if (res.ok && typeof json === 'object' && json !== null) {
+        const body = json as Record<string, unknown>;
+
+        const legacyOk = Boolean(body.ok);
+        const legacyMetrics =
+          body.metrics &&
+          typeof body.metrics === 'object' &&
+          body.metrics !== null &&
+          'period' in body.metrics;
+
+        if (legacyOk && legacyMetrics) {
+          const typed = body as unknown as AppHealthApiResponse;
+          setMetrics(typed.metrics ?? null);
+          const reports: Array<{
+            id: string;
+            user_id: string | null;
+            platform: string | null;
+            app_version: string | null;
+            device_info: string | null;
+            error_type: string | null;
+            error_message: string | null;
+            stack_trace: string | null;
+            severity: 'error' | 'critical' | 'fatal' | null;
+            created_at: string;
+          }> = typed.errorReports ?? [];
+          if (reports.length) {
+            console.warn('[app-health] errorReports present in payload:', reports.length);
+          }
+          return;
+        }
+
+        const modernUsageStats =
+          Array.isArray(body.usageStats) ||
+          (body.usageStats && typeof body.usageStats === 'object');
+
+        if (!modernUsageStats) {
+          if (typeof body.error === 'string') {
+            setError(body.error);
+          } else {
+            setError('Failed to load app health data');
+          }
+          return;
+        }
+
+        const legacyMetricsFallback: AppHealthMetrics = {
+          period: `${period}d`,
+          totalRegisteredUsers: 0,
+          usersWithUsageHistory: 0,
+          activeUsers: { dau: 0, wau: 0, mau: 0 },
+          versionAdoption: [],
+          platformDistribution: [],
+          forceUpdateStatus: null,
+        };
+
+        if (Array.isArray(body.usageStats)) {
+          for (const row of body.usageStats) {
+            if (row && typeof row === 'object') {
+              const r = row as Record<string, unknown>;
+              const platform = r.platform;
+              if (typeof platform === 'string') {
+                const existing = legacyMetricsFallback.platformDistribution.find((p) => p.platform === platform);
+                if (existing) {
+                  existing.users += 1;
+                } else {
+                  legacyMetricsFallback.platformDistribution.push({ platform, users: 1, percentage: 0 });
+                }
+              }
+            }
+          }
+        }
+
+        const totalPlatformUsers =
+          legacyMetricsFallback.platformDistribution.reduce((sum, p) => sum + p.users, 0);
+        if (totalPlatformUsers > 0) {
+          for (const p of legacyMetricsFallback.platformDistribution) {
+            p.percentage = (p.users / totalPlatformUsers) * 100;
+          }
+        }
+
+        setMetrics(legacyMetricsFallback);
         return;
       }
-      setMetrics(json.metrics ?? null);
-      const reports: Array<{
-        id: string;
-        user_id: string | null;
-        platform: string | null;
-        app_version: string | null;
-        device_info: string | null;
-        error_type: string | null;
-        error_message: string | null;
-        stack_trace: string | null;
-        severity: 'error' | 'critical' | 'fatal' | null;
-        created_at: string;
-      }> = json.errorReports ?? [];
-      if (reports.length) {
-        console.warn('[app-health] errorReports present in payload:', reports.length);
-      }
+
+      setError('Failed to load app health data');
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {

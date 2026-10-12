@@ -48,10 +48,12 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const nav = (
+  const sidebarNav = (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       {NAV_ITEMS.map((item) => {
-        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        const exact = pathname === item.href;
+        const childActive = item.href !== "/" && pathname.startsWith(item.href) && pathname !== item.href;
+        const active = exact || childActive;
         const Icon = item.icon;
         return (
           <Link
@@ -60,12 +62,12 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
             onClick={() => setMobileOpen(false)}
             className={cn(
               "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
-              active
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-100",
+              exact && "bg-zinc-900 text-white",
+              childActive && "bg-zinc-800/60 text-zinc-300",
+              !active && "text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-100",
             )}
           >
-            <Icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : "text-zinc-500")} />
+            <Icon className={cn("h-4 w-4 shrink-0", exact && "text-white", childActive && "text-zinc-200", !exact && !childActive && "text-zinc-500")} />
             <span className="truncate">{item.label}</span>
           </Link>
         );
@@ -78,7 +80,7 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/40 lg:flex">
         <Brand />
-        {nav}
+        {sidebarNav}
         <SidebarFooter loading={loading} onRefresh={onRefresh} lastUpdated={lastUpdated} />
       </aside>
 
@@ -98,7 +100,7 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {nav}
+            {sidebarNav}
             <SidebarFooter loading={loading} onRefresh={onRefresh} lastUpdated={lastUpdated} />
           </aside>
         </div>

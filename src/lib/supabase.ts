@@ -20,6 +20,9 @@ export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPA
 export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "sb_publishable_GgyDJs0On_xdoFr4QLxlWA_wyRlktjf";
 
+export const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? "sb_service_";
+
 /** True when the configured URL is the hardcoded fallback, not an env var. */
 export const isUsingDefaultProjectUrl = !process.env.NEXT_PUBLIC_SUPABASE_URL;
 

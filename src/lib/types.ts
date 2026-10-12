@@ -221,3 +221,17 @@ export interface AppUsageStats {
   first_seen: string;
   total_sessions: number;
 }
+
+export interface ErrorReport {
+  id: string;
+  user_id: string | null;
+  platform: string | null;
+  app_version: string | null;
+  device_info: string | null;
+  error_type: string | null;
+  error_message: string | null;
+  stack_trace: string | null;
+  severity: "error" | "critical" | "fatal" | null;
+  created_at: string;
+  fingerprint?: string | null;
+}

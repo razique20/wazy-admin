@@ -47,9 +47,21 @@ interface AppHealthMetrics {
   forceUpdateStatus: ForceUpdateStatus | null;
 }
 
-interface ApiResponse {
+interface AppHealthApiResponse {
   ok: boolean;
   metrics?: AppHealthMetrics;
+  errorReports?: Array<{
+    id: string;
+    user_id: string | null;
+    platform: string | null;
+    app_version: string | null;
+    device_info: string | null;
+    error_type: string | null;
+    error_message: string | null;
+    stack_trace: string | null;
+    severity: 'error' | 'critical' | 'fatal' | null;
+    created_at: string;
+  }>;
   error?: string;
 }
 
@@ -69,14 +81,29 @@ export default function AppHealthPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/app-health?period=${period}d`, { cache: "no-store" });
-      const json: ApiResponse = await res.json();
+      const res = await fetch(`/api/app-health?period=${period}d&includeErrorReports=true`, { cache: "no-store" });
+      const json: AppHealthApiResponse = await res.json();
       if (!res.ok || !json.ok) {
         setError(json.error ?? "Failed to load app health data");
         setMetrics(null);
         return;
       }
       setMetrics(json.metrics ?? null);
+      const reports: Array<{
+        id: string;
+        user_id: string | null;
+        platform: string | null;
+        app_version: string | null;
+        device_info: string | null;
+        error_type: string | null;
+        error_message: string | null;
+        stack_trace: string | null;
+        severity: 'error' | 'critical' | 'fatal' | null;
+        created_at: string;
+      }> = json.errorReports ?? [];
+      if (reports.length) {
+        console.warn('[app-health] errorReports present in payload:', reports.length);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {
@@ -291,6 +318,8 @@ export default function AppHealthPage() {
               </div>
             </CardContent>
           </Card>
+
+
 
           {/* Version Adoption */}
           <Card>

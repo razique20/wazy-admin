@@ -72,6 +72,7 @@ export default function SystemPage() {
           <TabsTrigger value="reminders">Reminders</TabsTrigger>
           <TabsTrigger value="versions">App Version</TabsTrigger>
           <TabsTrigger value="app-health">App Health</TabsTrigger>
+          <TabsTrigger value="error-reports">Error Reports</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
           <TabsTrigger value="danger" className="text-red-400 data-[state=active]:text-red-300">Danger Zone</TabsTrigger>
         </TabsList>

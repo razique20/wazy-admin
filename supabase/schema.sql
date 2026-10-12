@@ -291,6 +291,76 @@ begin
 end;
 $$;
 
+-- P1.3: Error & Crash Reporting (idempotent)
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'error_reports'
+  ) then
+    create table public.error_reports (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid references auth.users(id) on delete set null,
+      platform text,
+      app_version text,
+      device_info text,
+      error_type text,
+      error_message text,
+      stack_trace text,
+      severity text check (severity in ('error', 'critical', 'fatal')),
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+  end if;
+end
+$$;
+
+alter table public.error_reports enable row level security;
+
+-- Idempotent policy creation: only create if the policy does not already exist.
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'error_reports'
+      and policyname = 'Users can insert own error reports'
+  ) then
+    create policy "Users can insert own error reports"
+      on public.error_reports
+      for insert
+      with check (auth.uid() is not null);
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'error_reports'
+      and policyname = 'Admins can view all error reports'
+  ) then
+    create policy "Admins can view all error reports"
+      on public.error_reports
+      for select
+      using (
+        auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'
+        or auth.uid() in (
+          select user_id from public.user_tiers where tier in ('admin', 'owner')
+        )
+      );
+  end if;
+end
+$$;
+
+-- Indexes (idempotent)
+create index if not exists error_reports_user_id_idx on public.error_reports(user_id);
+create index if not exists error_reports_created_at_idx on public.error_reports(created_at desc);
+create index if not exists error_reports_severity_idx on public.error_reports(severity);
+create index if not exists error_reports_platform_idx on public.error_reports(platform);
+
 -- Schedule daily at 06:00 UTC (10:00 GST). Requires pg_cron extension.
 select cron.unschedule('daily-reminder-scan')
 where exists (select 1 from cron.job where jobname = 'daily-reminder-scan');

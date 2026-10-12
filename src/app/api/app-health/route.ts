@@ -87,9 +87,7 @@ export async function GET(request: Request) {
     // 2. Fetch app usage stats
     const { data: usageDataRaw } = await admin
       .from("app_usage_stats")
-      .select("user_id, platform, app_version, last_app_open, first_seen, total_sessions")
-      .gte("last_app_open", cutoffDate.toISOString())
-      .or("last_app_open.is.null");
+      .select("user_id, platform, app_version, last_app_open, first_seen, total_sessions");
 
     const usageData = usageDataRaw ?? [];
     const usageMap = new Map<string, (typeof usageData)[0]>();
@@ -166,7 +164,8 @@ export async function GET(request: Request) {
       .eq("platform", "all")
       .maybeSingle();
 
-    let forceUpdateStatus = null;      if (versionData?.is_force_update) {
+    let forceUpdateStatus = null;
+    if (versionData?.is_force_update) {
       const minVersion = versionData.min_required_version;
       let usersBelowMin = 0;
 

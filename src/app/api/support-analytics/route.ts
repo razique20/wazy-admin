@@ -51,8 +51,22 @@ export async function GET() {
       return NextResponse.json({ ok: true, features, total });
     }
 
-    // RPC returned data
-    const rpcFeatures = result as unknown as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
+    // RPC returned data - handle both array and object return types
+    let rpcFeatures: Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }> = [];
+
+    if (Array.isArray(result)) {
+      rpcFeatures = result as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
+    } else if (typeof result === 'object' && result !== null) {
+      // RPC might return { features: [...] } or similar structure
+      // Use type assertion to bypass strict index signature check
+      const rpcObj = result as unknown as Record<string, unknown>;
+      if (Array.isArray(rpcObj.features)) {
+        rpcFeatures = rpcObj.features as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
+      } else if (Array.isArray(rpcObj.data)) {
+        rpcFeatures = rpcObj.data as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
+      }
+    }
+
     const features = rpcFeatures
       .filter(f => f.feature_name)
       .sort((a, b) => (b.request_count) - (a.request_count));

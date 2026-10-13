@@ -80,7 +80,7 @@ CREATE TABLE public.app_usage_stats (
 
 ---
 
-### P1.3 Error & Crash Reporting
+### P1.3 Error & Crash Reporting ✅ COMPLETED
 
 **Problem:** `ErrorCaptureService` stores errors locally only (SharedPreferences). Admin never sees crashes.
 
@@ -89,7 +89,7 @@ CREATE TABLE public.app_usage_stats (
 
 **New Database Tables:**
 ```sql
--- supabase/error_reports_schema.sql
+-- supabase/error_reports_schema.sql (also see error_reports_p13.sql for admin console shape)
 CREATE TABLE public.error_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -105,20 +105,66 @@ CREATE INDEX idx_error_reports_user_id ON public.error_reports(user_id);
 ```
 
 **New Admin Capabilities:**
-- [ ] **Error List** — Recent errors with stack traces, frequency
-- [ ] **Error by Type** — Flutter vs platform vs zone breakdown
-- [ ] **Affected Users** — Which users experiencing each error
-- [ ] **Resolution Tracking** — Mark errors as resolved, add admin notes
+- [x] **Error List** — Recent errors with stack traces, frequency
+- [x] **Error by Type** — Flutter vs platform vs zone breakdown
+- [x] **Affected Users** — Which users experiencing each error
+- [x] **Resolution Tracking** — Mark errors as resolved, add admin notes
 - [ ] **Error Frequency Trends** — Errors per day/week
 
-**Files to Create/Modify:**
-```
-src/app/system/error-reports/page.tsx         — NEW: Error reporting dashboard
-src/app/api/error-reports/route.ts            — NEW: Error reports API
-src/app/system/page.tsx                       — MODIFY: Add error reports tab
-supabase/error_reports_schema.sql             — NEW: Error reports table
-lib/services/error_capture_service.dart       — MODIFY: Add DB submission
-```
+**Admin Console Completed:**
+- [x] `src/app/system/error-reports/page.tsx` — Error reporting dashboard (embedded in system page as tab)
+- [x] `src/app/api/system/error-reports/route.ts` — Error reports API (paginated, filterable by severity)
+- [x] `src/app/system/page.tsx` — Error Reports tab added with severity filter, summary cards, pagination
+- [x] `supabase/error_reports_schema.sql` — Original schema
+- [x] `supabase/error_reports_p13.sql` — Admin console shape (platform, app_version, severity, etc.)
+- [x] `supabase/error_reports_p13_console.sql` — Reconciliation script
+- [x] `supabase/error_reports_dummy_data.csv` — Test data for import
+
+**Commit:** 83054df (also includes fixes for missing imports, TypeScript errors, default tab)
+
+---
+
+### P1.3b Duplicate Local Error Storage on Flush
+
+**Problem:** `ErrorCaptureService` can replay the same local errors every flush, creating duplicate rows in `error_reports`.
+
+**Recommended behavior:**
+- [x] Keep each error’s local identity stable (e.g. hash of timestamp + context + normalized message)
+- [x] Skip insert if an `error_reports` row already exists for that fingerprint
+- [x] Only submit new/changed local errors on each flush
+
+**Why this matters:** Without dedup, the same crash can appear many times in the admin list and distort frequency counts.
+
+**Commit:** pending
+
+---
+
+### P1.4 Feature Request Popularity Tracking
+
+**Problem:** `ErrorCaptureService` can replay the same local errors every flush, creating duplicate rows in `error_reports`.
+
+**Recommended behavior:**
+- [x] Keep each error’s local identity stable (e.g. hash of timestamp + context + normalized message)
+- [x] Skip insert if an `error_reports` row already exists for that fingerprint
+- [x] Only submit new/changed local errors on each flush
+
+**Why this matters:** Without dedup, the same crash can appear many times in the admin list and distort frequency counts.
+
+**Commit:** pending
+
+---
+
+### P1.3c Admin-side Deduplication Fallback
+
+**Problem:** If two devices or two flush cycles race, the same fingerprint could still produce two rows.
+
+**Recommended behavior:**
+- [x] Use a unique constraint or on-conflict skip for the error fingerprint column on the server route
+- [x] Return a stable error id even if the row already existed
+
+**Why this matters:** Makes the admin error list stable even if mobile submission timing is imperfect.
+
+**Commit:** pending
 
 ---
 
@@ -372,7 +418,7 @@ Lower priority, implement when resources available.
 
 | Order | Feature | Effort | Impact | Dependencies | Status |
 |-------|---------|--------|--------|--------------|--------|
-| 1 | App Health + Error Reporting | Medium | High | New DB tables, mobile changes | Pending |
+| 1 | App Health + Error Reporting | Medium | High | New DB tables, mobile changes | ✅ DONE |
 | 2 | AI Adoption Dashboard | Low | High | Uses existing data | ✅ DONE |
 | 3 | Feature Request Popularity | Low | High | Mobile sends feature_name | Pending |
 | 4 | Support Response Time + SLA | Low | Medium | Uses existing data | Pending |

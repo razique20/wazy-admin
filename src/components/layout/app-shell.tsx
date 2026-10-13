@@ -12,7 +12,7 @@ import {
   CreditCard,
   LifeBuoy,
   Bot,
-  Activity,
+  Lightbulb,
   Settings2,
   Menu,
   X,
@@ -28,13 +28,13 @@ const NAV_ITEMS = [
   { href: "/users", label: "Users", icon: Users },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/support", label: "Support Requests", icon: LifeBuoy },
+  { href: "/support/analytics", label: "Feature Popularity", icon: Lightbulb },
   { href: "/ai-usage", label: "AI Usage & Quotas", icon: Bot },
   { href: "/ai-adoption", label: "AI Adoption", icon: TrendingUp },
   { href: "/collections", label: "Collections & Documents", icon: FolderKanban },
   { href: "/finance", label: "Finance Ledger", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },
   { href: "/system", label: "System & Data", icon: Settings2 },
-  { href: "/system/app-health", label: "App Health", icon: Activity },
 ] as const;
 
 interface AppShellProps {

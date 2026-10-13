@@ -425,7 +425,7 @@ Lower priority, implement when resources available.
 |-------|---------|--------|--------|--------------|--------|
 | 1 | App Health + Error Reporting | Medium | High | New DB tables, mobile changes | ✅ DONE |
 | 2 | AI Adoption Dashboard | Low | High | Uses existing data | ✅ DONE |
-| 3 | Feature Request Popularity | Low | High | Mobile sends feature_name | Pending |
+| 3 | Feature Request Popularity | Low | High | Mobile sends feature_name | ✅ DONE |
 | 4 | Support Response Time + SLA | Low | Medium | Uses existing data | Pending |
 | 5 | Upgrade Request Queue | Medium | High | New DB table, mobile changes | Pending |
 | 6 | Bug Severity Tracking | Low | Medium | Schema change, mobile changes | Pending |

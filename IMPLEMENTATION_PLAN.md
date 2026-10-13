@@ -124,18 +124,24 @@ CREATE INDEX idx_error_reports_user_id ON public.error_reports(user_id);
 
 ---
 
-### P1.3b Duplicate Local Error Storage on Flush
+### P1.3b Duplicate Local Error Storage on Flush ✅ COMPLETED
 
 **Problem:** `ErrorCaptureService` can replay the same local errors every flush, creating duplicate rows in `error_reports`.
 
-**Recommended behavior:**
-- [x] Keep each error’s local identity stable (e.g. hash of timestamp + context + normalized message)
-- [x] Skip insert if an `error_reports` row already exists for that fingerprint
-- [x] Only submit new/changed local errors on each flush
+**Solution:**
+- [x] Keep each error's local identity stable (SHA1 hash of message + context + timestamp + stackHead)
+- [x] Mobile: Use `upsert` with `onConflict: 'user_id, error_fingerprint'` to skip duplicates
+- [x] Server: Add unique index `error_reports_fingerprint_unique` on `(user_id, error_fingerprint) WHERE error_fingerprint IS NOT NULL`
 
-**Why this matters:** Without dedup, the same crash can appear many times in the admin list and distort frequency counts.
+**Files Modified:**
+```
+lib/services/error_capture_service.dart     — Updated _submitToAdmin with onConflict upsert
+supabase/error_reports_p13.sql               — Added unique index for fingerprint dedup
+```
 
-**Commit:** pending
+**Commit:** 254f57b
+
+---
 
 ---
 
@@ -154,17 +160,16 @@ CREATE INDEX idx_error_reports_user_id ON public.error_reports(user_id);
 
 ---
 
-### P1.3c Admin-side Deduplication Fallback
+### P1.3c Admin-side Deduplication Fallback ✅ COMPLETED (merged into P1.3b)
 
-**Problem:** If two devices or two flush cycles race, the same fingerprint could still produce two rows.
+**Solution:** Server-side unique index `error_reports_fingerprint_unique` on `(user_id, error_fingerprint) WHERE error_fingerprint IS NOT NULL` provides the race-condition fallback — conflicting upserts are silently skipped. The mobile's `onConflict: 'user_id, error_fingerprint'` handles the common case; the unique index handles the edge case of concurrent submissions from two devices.
 
-**Recommended behavior:**
-- [x] Use a unique constraint or on-conflict skip for the error fingerprint column on the server route
-- [x] Return a stable error id even if the row already existed
+**Files Modified:**
+```
+supabase/error_reports_p13.sql               — Added unique index for fingerprint dedup
+```
 
-**Why this matters:** Makes the admin error list stable even if mobile submission timing is imperfect.
-
-**Commit:** pending
+**Commit:** 254f57b
 
 ---
 

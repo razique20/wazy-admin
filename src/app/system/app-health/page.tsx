@@ -115,6 +115,26 @@ export default function AppHealthPage() {
           return;
         }
 
+        // New API format with computed metrics
+        const newFormat = body.totalRegisteredUsers !== undefined;
+        if (newFormat) {
+          const metrics: AppHealthMetrics = {
+            period: `${period}d`,
+            totalRegisteredUsers: body.totalRegisteredUsers as number ?? 0,
+            usersWithUsageHistory: body.usersWithUsageHistory as number ?? 0,
+            activeUsers: {
+              dau: body.activeUsers?.dau as number ?? 0,
+              wau: body.activeUsers?.wau as number ?? 0,
+              mau: body.activeUsers?.mau as number ?? 0,
+            },
+            versionAdoption: (body.versionAdoption as VersionAdoption[]) ?? [],
+            platformDistribution: (body.platformDistribution as PlatformDistribution[]) ?? [],
+            forceUpdateStatus: null,
+          };
+          setMetrics(metrics);
+          return;
+        }
+
         const modernUsageStats =
           Array.isArray(body.usageStats) ||
           (body.usageStats && typeof body.usageStats === 'object');

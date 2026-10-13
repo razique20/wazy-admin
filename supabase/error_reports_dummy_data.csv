@@ -1,0 +1,12 @@
+id,user_id,platform,app_version,device_info,error_type,error_message,stack_trace,severity,created_at
+72cdb873-0458-4d98-a10a-8204b7192fee,ab0eac66-0fa9-43f4-8c39-b0434b4f319e,ios,1.0.0,iPhone 15 Pro iOS 17.5,dart,Unhandled Exception: LateInitializationError: LateGettersQuadTree was not initialized.,,error,2026-10-10 09:23:45+00
+234b9805-f081-49fa-afd0-61b90b7a6098,ab0eac66-0fa9-43f4-8c39-b0434b4f319e,ios,1.0.0,iPhone 15 Pro iOS 17.5,flutter,MissingPluginException: No implementation found for method scanBarcode,,error,2026-10-10 09:23:45+00
+0971e3cc-f034-42b7-abfd-ed86912428d9,ab0eac66-0fa9-43f4-8c39-b0434b4f319e,ios,1.0.0,iPhone 15 Pro iOS 17.5,dart,StateError: Bad state: No element,chrome_devtools_standard_protocol_transport_client.dart:784,error,2026-10-10 09:23:45+00
+29e726e3-5359-4c1f-92d2-c3249f094073,ab0eac66-0fa9-43f4-8c39-b0434b4f319e,ios,1.0.0,iPhone 15 Pro iOS 17.5,zone,Exception: Error in Flutter Error Zone,,fatal,2026-10-10 09:23:45+00
+3d1d953e-91a2-4fe4-be82-e6bdde603e8f,ab0eac66-0fa9-43f4-8c39-b0434b4f319e,ios,1.0.0,iPhone 15 Pro iOS 17.5,flutter,FlutterError: Unable to resolve location for image reference,,error,2026-10-10 09:23:45+00
+5b380fcc-2ea5-4d4b-93bb-d48eea489321,2cedc541-a9bd-4bb1-926e-4f5850bc95ee,android,1.0.0,Samsung Galaxy S24 Android 14,flutter,TypeError: Cannot read properties of null (reading currentState),,error,2026-10-10 09:23:45+00
+0a01ea74-706e-4827-bee0-2f8ffa3558d0,2cedc541-a9bd-4bb1-926e-4f5850bc95ee,android,1.0.0,Samsung Galaxy S24 Android 14,platform,AndroidException: GPS_PROVIDER not available,,critical,2026-10-10 09:23:45+00
+08944977-e366-4768-ab16-fd7e5608e5f1,2cedc541-a9bd-4bb1-926e-4f5850bc95ee,android,1.0.0,Samsung Galaxy S24 Android 14,dart,AssertionError: Exactly one widget implementing DefaultAssetBundle,,error,2026-10-10 09:23:45+00
+9bb514b3-b58c-42ab-8607-65da36429ec7,2cedc541-a9bd-4bb1-926e-4f5850bc95ee,android,1.0.0,Samsung Galaxy S24 Android 14,flutter,Null check operator used on a null value,,error,2026-10-10 09:23:45+00
+a5a112e5-12f6-4ece-844c-6803c00c6d52,2cedc541-a9bd-4bb1-926e-4f5850bc95ee,android,1.0.0,Samsung Galaxy S24 Android 14,dart,RangeError: Invalid value: Invalid line number,,error,2026-10-10 09:23:45+00
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BellRing, Database, Download, FileJson, FileSpreadsheet, History, Loader2, Plus, RotateCcw, Rocket, Send, ShieldAlert, Trash2, TriangleAlert } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
 import { deleteRow, insertRow } from "@/lib/hooks";

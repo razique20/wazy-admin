@@ -123,9 +123,9 @@ export default function AppHealthPage() {
             totalRegisteredUsers: body.totalRegisteredUsers as number ?? 0,
             usersWithUsageHistory: body.usersWithUsageHistory as number ?? 0,
             activeUsers: {
-              dau: body.activeUsers?.dau as number ?? 0,
-              wau: body.activeUsers?.wau as number ?? 0,
-              mau: body.activeUsers?.mau as number ?? 0,
+              dau: (body.activeUsers as { dau?: number })?.dau ?? 0,
+              wau: (body.activeUsers as { wau?: number })?.wau ?? 0,
+              mau: (body.activeUsers as { mau?: number })?.mau ?? 0,
             },
             versionAdoption: (body.versionAdoption as VersionAdoption[]) ?? [],
             platformDistribution: (body.platformDistribution as PlatformDistribution[]) ?? [],

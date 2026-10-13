@@ -37,8 +37,8 @@ export async function GET(request: Request) {
     // Note: .from("auth", "users") doesn't work with Supabase JS client for auth schema
     const admin = serviceRoleClient.auth.admin;
     const listUsersResult = await admin.listUsers({ page: 1, perPage: 1 });
-    // Response: { data: { users, total, nextPage, lastPage, ... }, error }
-    const totalRegisteredUsers = listUsersResult.data?.total ?? 0;
+    // Response may have total in data.total or we can count the users array
+    const totalRegisteredUsers = (listUsersResult.data as { users: unknown[]; total?: number }).total ?? listUsersResult.data?.users?.length ?? 0;
 
     // Fetch usage stats
     const usageStatsResult = await serviceRoleClient

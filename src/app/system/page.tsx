@@ -64,7 +64,7 @@ export default function SystemPage() {
         </Card>
       ) : null}
 
-      <Tabs defaultValue="export">
+      <Tabs defaultValue="error-reports">
         <TabsList>
           <TabsTrigger value="export">Data Exporter</TabsTrigger>
           <TabsTrigger value="sql">SQL Runner</TabsTrigger>

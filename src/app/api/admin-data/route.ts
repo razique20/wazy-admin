@@ -19,6 +19,7 @@ const DIRECT_PG_TABLES: Record<string, string> = {
   supportRequests: "support_requests",
   aiQuotaUsage: "ai_quota_usage",
   appVersions: "app_versions",
+  appUsageStats: "app_usage_stats",
 };
 
 async function fetchAllDirectPg(): Promise<{
@@ -76,6 +77,7 @@ const FETCH_SPEC: {
   { key: "supportRequests", table: "support_requests", order: "created_at", asc: false },
   { key: "aiQuotaUsage", table: "ai_quota_usage", order: "updated_at", asc: false },
   { key: "appVersions", table: "app_versions", order: "platform", asc: true },
+  { key: "appUsageStats", table: "app_usage_stats", order: "last_app_open", asc: false },
 ];
 
 function getClient() {

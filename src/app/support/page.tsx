@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { LifeBuoy, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Lightbulb, LifeBuoy, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
 import { deleteRow, updateRow } from "@/lib/hooks";
 import {
@@ -108,6 +109,13 @@ export default function SupportPage() {
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/support/analytics"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-amber-500/40 hover:text-zinc-100"
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+                Feature Popularity
+              </Link>
               <div className="relative w-56">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
                 <Input

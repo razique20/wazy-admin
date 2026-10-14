@@ -165,6 +165,8 @@ export interface SupportRequest {
   request_type: SupportRequestType | string;
   title: string;
   description: string | null;
+  /** P1.4 feature-request tracking — `null` for non-feature requests. */
+  feature_name: string | null;
   status: SupportStatus | string;
   admin_notes: string | null;
   created_at: string;

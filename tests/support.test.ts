@@ -16,6 +16,7 @@ function row(overrides: Partial<SupportRequest>): SupportRequest {
     request_type: "support_request",
     title: "Help",
     description: null,
+    feature_name: null,
     status: "open",
     admin_notes: null,
     created_at: "2026-09-01T10:00:00Z",

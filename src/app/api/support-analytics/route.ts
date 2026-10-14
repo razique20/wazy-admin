@@ -14,66 +14,56 @@ export async function GET() {
   try {
     const client = createServiceRoleClient();
 
-    // Group feature requests by feature_name
-    const result = await client
-      .rpc("feature_request_popularity", { limit: 50 });
+    // Feature popularity is computed server-side in TypeScript.
+    // Do not depend on a DB RPC that may not exist in every Supabase project.
+    const features = await client
+      .from("support_requests")
+      .select("id, feature_name, created_at")
+      .eq("request_type", "feature_request")
+      .neq("feature_name", null);
 
-    if (result === null || result === undefined) {
-      // Fallback: compute in JS if RPC doesn't exist
-      const rows = await client
-        .from("support_requests")
-        .select("feature_name, created_at")
-        .eq("request_type", "feature_request")
-        .neq("feature_name", null);
-
-      if (rows.error) {
-        return NextResponse.json(
-          { ok: false, error: rows.error.message },
-          { status: 500 }
-        );
-      }
-
-      const counts: Record<string, { feature: string; count: number; firstRequested: string; lastRequested: string }> = {};
-      for (const row of rows.data || []) {
-        const fn = row.feature_name;
-        if (!fn) continue;
-        if (!counts[fn]) {
-          counts[fn] = { feature: fn, count: 0, firstRequested: row.created_at, lastRequested: row.created_at };
-        }
-        counts[fn].count++;
-        if (row.created_at < counts[fn].firstRequested) counts[fn].firstRequested = row.created_at;
-        if (row.created_at > counts[fn].lastRequested) counts[fn].lastRequested = row.created_at;
-      }
-
-      const features = Object.values(counts).sort((a, b) => b.count - a.count);
-      const total = features.reduce((sum, f) => sum + f.count, 0);
-
-      return NextResponse.json({ ok: true, features, total });
+    if (features.error) {
+      return NextResponse.json(
+        { ok: false, error: features.error.message },
+        { status: 500 }
+      );
     }
 
-    // RPC returned data - handle both array and object return types
-    let rpcFeatures: Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }> = [];
+    const counts: Record<
+      string,
+      { feature_name: string; request_count: number; first_requested: string; last_requested: string }
+    > = {};
 
-    if (Array.isArray(result)) {
-      rpcFeatures = result as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
-    } else if (typeof result === 'object' && result !== null) {
-      // RPC might return { features: [...] } or similar structure
-      // Use type assertion to bypass strict index signature check
-      const rpcObj = result as unknown as Record<string, unknown>;
-      if (Array.isArray(rpcObj.features)) {
-        rpcFeatures = rpcObj.features as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
-      } else if (Array.isArray(rpcObj.data)) {
-        rpcFeatures = rpcObj.data as Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }>;
+    const data = features.data ?? [];
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i] as { feature_name: string | null; created_at: string | null } | null;
+      if (!row) continue;
+      const fn = typeof row.feature_name === "string" ? row.feature_name.trim() : null;
+      if (!fn) continue;
+
+      if (!counts[fn]) {
+        counts[fn] = {
+          feature_name: fn,
+          request_count: 0,
+          first_requested: row.created_at ?? "",
+          last_requested: row.created_at ?? "",
+        };
+      }
+
+      counts[fn].request_count++;
+      if (row.created_at && row.created_at < counts[fn].first_requested) {
+        counts[fn].first_requested = row.created_at;
+      }
+      if (row.created_at && row.created_at > counts[fn].last_requested) {
+        counts[fn].last_requested = row.created_at;
       }
     }
 
-    const features = rpcFeatures
-      .filter(f => f.feature_name)
-      .sort((a, b) => (b.request_count) - (a.request_count));
+    const ranked: Array<{ feature_name: string; request_count: number; first_requested: string; last_requested: string }> = Object.values(counts);
+    ranked.sort((a, b) => b.request_count - a.request_count);
+    const total = ranked.reduce((sum, f) => sum + f.request_count, 0);
 
-    const total = features.reduce((sum, f) => sum + f.request_count, 0);
-
-    return NextResponse.json({ ok: true, features, total });
+    return NextResponse.json({ ok: true, features: ranked, total });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Failed to fetch feature popularity" },

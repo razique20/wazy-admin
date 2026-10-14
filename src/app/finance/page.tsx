@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowUpDown, Search, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, ArrowUpDown, PiggyBank, Receipt, Search, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
-import { BudgetBars } from "@/components/finance/budget-bars";
-import { EnvelopeCards } from "@/components/finance/envelope-cards";
-import { RecurringList } from "@/components/finance/recurring-list";
+import { KpiCard } from "@/components/dashboard/kpi-card";
+import { UserFinanceDialog } from "@/components/finance/user-finance-dialog";
 import {
   Badge,
   Card,
@@ -15,11 +14,6 @@ import {
   CardTitle,
   EmptyState,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   Table,
   TableBody,
@@ -28,48 +22,86 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui";
-import { formatCurrency, formatDate, titleize } from "@/lib/format";
+import { computeFinancePlatformTotals, computeFinanceUserRows, type FinanceUserRow } from "@/lib/finance-monitor";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-type SortField = "occurred_at" | "amount" | "title";
+/**
+ * Finance Activity — the admin's monitor for the finance module.
+ *
+ * Replaces the old cross-user transaction dump: raw per-user rows were
+ * meaningless without owner attribution. Now the page leads with platform
+ * KPIs (active users, MTD spend, feature adoption), then one rollup row per
+ * user, with a click-through dialog for an individual user's ledger.
+ */
+
+type SortField = "lastLoggedAt" | "transactionsCount" | "expensesThisMonth" | "expensesTotal" | "ownerId";
+
+interface AuthUser {
+  id: string;
+  email: string | null;
+}
 
 export default function FinancePage() {
-  const { data, loading, error } = useWazy();
+  const { data, loading, error, lastUpdated } = useWazy();
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState("all");
-  const [category, setCategory] = useState("all");
-  const [sort, setSort] = useState<{ field: SortField; dir: "asc" | "desc" }>({ field: "occurred_at", dir: "desc" });
+  const [sort, setSort] = useState<{ field: SortField; dir: "asc" | "desc" }>({
+    field: "lastLoggedAt",
+    dir: "desc",
+  });
+  const [selected, setSelected] = useState<FinanceUserRow | null>(null);
 
-  const categories = useMemo(
-    () => [...new Set(data.transactions.map((t) => t.category))].sort(),
-    [data.transactions],
-  );
+  // Email mapping for owner ids (degrades gracefully to raw ids if the
+  // auth-users route is unavailable on this deployment).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin-users", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) setAuthUsers(json.users ?? []);
+      } catch {
+        /* keep empty — table falls back to short owner ids */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const rows = useMemo(() => {
+  const emailByOwner = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of authUsers) if (u.email) map.set(u.id, u.email);
+    return map;
+  }, [authUsers]);
+
+  const totals = useMemo(() => computeFinancePlatformTotals(data, new Date()), [data]);
+  const rows = useMemo(() => computeFinanceUserRows(data, new Date()), [data]);
+
+  const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = data.transactions.filter((t) => {
-      if (q && !`${t.title} ${t.note ?? ""}`.toLowerCase().includes(q)) return false;
-      if (kind !== "all" && t.kind !== kind) return false;
-      if (category !== "all" && t.category !== category) return false;
-      return true;
+    const filtered = rows.filter((r) => {
+      if (!q) return true;
+      const email = emailByOwner.get(r.ownerId) ?? "";
+      return email.toLowerCase().includes(q) || r.ownerId.toLowerCase().includes(q);
     });
     const dir = sort.dir === "asc" ? 1 : -1;
-    return filtered.sort((a, b) => {
-      if (sort.field === "amount") return (Number(a.amount) - Number(b.amount)) * dir;
-      if (sort.field === "title") return a.title.localeCompare(b.title) * dir;
-      return a.occurred_at.localeCompare(b.occurred_at) * dir;
+    return [...filtered].sort((a, b) => {
+      switch (sort.field) {
+        case "transactionsCount":
+          return (a.transactionsCount - b.transactionsCount) * dir;
+        case "expensesThisMonth":
+          return (a.expensesThisMonth - b.expensesThisMonth) * dir;
+        case "expensesTotal":
+          return (a.expensesTotal - b.expensesTotal) * dir;
+        case "ownerId":
+          return (emailByOwner.get(a.ownerId) ?? a.ownerId).localeCompare(emailByOwner.get(b.ownerId) ?? b.ownerId) * dir;
+        default:
+          return (a.lastLoggedAt ?? "").localeCompare(b.lastLoggedAt ?? "") * dir;
+      }
     });
-  }, [data.transactions, query, kind, category, sort]);
-
-  const totals = useMemo(() => {
-    let income = 0;
-    let expenses = 0;
-    for (const t of rows) {
-      if (t.kind === "income") income += Number(t.amount);
-      else expenses += Number(t.amount);
-    }
-    return { income, expenses, net: income - expenses };
-  }, [rows]);
+  }, [rows, query, sort, emailByOwner]);
 
   const toggle = (field: SortField) =>
     setSort((s) => ({ field, dir: s.field === field && s.dir === "asc" ? "desc" : "asc" }));
@@ -78,122 +110,198 @@ export default function FinancePage() {
     return (
       <Card className="border-red-500/30">
         <CardContent className="pt-5">
-          <p className="text-sm font-medium text-red-400">Failed to load ledger</p>
+          <p className="text-sm font-medium text-red-400">Failed to load finance data</p>
           <p className="mt-1 text-xs text-zinc-400">{error}</p>
         </CardContent>
       </Card>
     );
   }
 
+  const adoptionUsers = Math.max(totals.usersWithBudgets, totals.usersWithEnvelopes, totals.usersWithRecurring);
+
   return (
     <div className="space-y-4">
-      {/* Ledger */}
+      {/* Platform KPIs */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Active Finance Users"
+          value={String(totals.activeUsersThisMonth)}
+          subvalue={`logged a transaction this month · ${totals.usersWithFinanceData} total with data`}
+          icon={<Users className="h-4 w-4" />}
+          accent={totals.activeUsersThisMonth > 0 ? "emerald" : "white"}
+          loading={loading}
+        />
+        <KpiCard
+          title="Expenses This Month"
+          value={formatCurrency(totals.expensesThisMonth)}
+          subvalue={`${totals.transactionsThisMonth} transactions MTD · net ${formatCurrency(totals.netThisMonth)}`}
+          icon={<TrendingDown className="h-4 w-4" />}
+          accent="red"
+          loading={loading}
+        />
+        <KpiCard
+          title="Income This Month"
+          value={formatCurrency(totals.incomeThisMonth)}
+          subvalue={`${totals.transactionsTotal} transactions logged all-time`}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent="emerald"
+          loading={loading}
+        />
+        <KpiCard
+          title="Users With Budgets"
+          value={String(totals.usersWithBudgets)}
+          subvalue={`${totals.usersWithEnvelopes} with envelopes · ${totals.usersWithRecurring} with recurring rules · ${adoptionUsers} using tracking tools`}
+          icon={<PiggyBank className="h-4 w-4" />}
+          accent="blue"
+          loading={loading}
+        />
+      </div>
+
+      {/* Per-user rollup */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>Finance & Expense Ledger</CardTitle>
+              <CardTitle>User Finance Activity</CardTitle>
               <CardDescription>
-                {rows.length} of {data.transactions.length} transactions · income {formatCurrency(totals.income)} ·
-                expenses {formatCurrency(totals.expenses)} · net {formatCurrency(totals.net)}
+                {rows.length} user{rows.length === 1 ? "" : "s"} with finance data · click a row to inspect their ledger
+                {lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
               </CardDescription>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <div className="relative md:col-span-2">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
               <Input
                 className="pl-9"
-                placeholder="Search title or note…"
+                placeholder="Search by email or owner id…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <Select value={kind} onValueChange={setKind}>
-              <SelectTrigger>
-                <SelectValue placeholder="Kind" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All kinds</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {titleize(c)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-
-          {loading ? (
+        </CardHeader>
+        <CardContent>
+          {loading && rows.length === 0 ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : rows.length === 0 ? (
-            <EmptyState icon={<Wallet className="h-10 w-10" />} title="No transactions found" />
+            <EmptyState
+              icon={<Receipt className="h-10 w-10" />}
+              title="No finance activity yet"
+              description="No user has logged a transaction, budget, envelope, or recurring rule."
+            />
+          ) : filteredRows.length === 0 ? (
+            <EmptyState icon={<Search className="h-10 w-10" />} title="No users match your search" />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                    <SortBtn label="Date" field="occurred_at" sort={sort} onToggle={() => toggle("occurred_at")} />
+                    <SortBtn label="User" field="ownerId" sort={sort} onToggle={() => toggle("ownerId")} />
                   </TableHead>
                   <TableHead>
-                    <SortBtn label="Title" field="title" sort={sort} onToggle={() => toggle("title")} />
+                    <SortBtn
+                      label="Last activity"
+                      field="lastLoggedAt"
+                      sort={sort}
+                      onToggle={() => toggle("lastLoggedAt")}
+                    />
                   </TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Kind</TableHead>
                   <TableHead className="text-right">
-                    <SortBtn label="Amount" field="amount" sort={sort} onToggle={() => toggle("amount")} />
+                    <SortBtn
+                      label="Transactions"
+                      field="transactionsCount"
+                      sort={sort}
+                      onToggle={() => toggle("transactionsCount")}
+                    />
                   </TableHead>
+                  <TableHead className="text-right">
+                    <SortBtn
+                      label="Spend (MTD)"
+                      field="expensesThisMonth"
+                      sort={sort}
+                      onToggle={() => toggle("expensesThisMonth")}
+                    />
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <SortBtn label="Spend (all)" field="expensesTotal" sort={sort} onToggle={() => toggle("expensesTotal")} />
+                  </TableHead>
+                  <TableHead>Tracking tools</TableHead>
+                  <TableHead aria-label="Open" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{formatDate(t.occurred_at)} </TableCell>
-                    <TableCell>
-                      <p className="font-medium text-zinc-100">{t.title}</p>
-                      {t.note ? <p className="text-[11px] text-zinc-500">{t.note}</p> : null}
-                    </TableCell>
-                    <TableCell>{titleize(t.category)}</TableCell>
-                    <TableCell>
-                      <Badge variant={t.kind === "income" ? "success" : "danger"}>{titleize(t.kind)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={t.kind === "income" ? "font-semibold text-emerald-400" : "font-semibold text-red-400"}>
-                        {t.kind === "income" ? "+" : "−"}
-                        {formatCurrency(t.amount, t.currency)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredRows.map((r) => {
+                  const email = emailByOwner.get(r.ownerId) ?? null;
+                  const mtdActive = r.transactionsThisMonth > 0;
+                  return (
+                    <TableRow
+                      key={r.ownerId}
+                      className="cursor-pointer"
+                      onClick={() => setSelected(r)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelected(r);
+                        }
+                      }}
+                    >
+                      <TableCell>
+                        <p className="font-medium text-zinc-100">{email ?? `Owner ${r.ownerId.slice(0, 8)}`}</p>
+                        {!email ? (
+                          <p className="text-[11px] text-zinc-500">no auth email on record</p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-zinc-300">{formatDate(r.lastLoggedAt)}</p>
+                        <p className="text-[11px] text-zinc-500">last entry {formatDate(r.lastEntryAt)}</p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <p className="font-semibold text-zinc-100">{r.transactionsCount}</p>
+                        <p className="text-[11px] text-zinc-500">{r.transactionsThisMonth} MTD</p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-semibold text-red-400">{formatCurrency(r.expensesThisMonth)}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-semibold text-zinc-300">{formatCurrency(r.expensesTotal)}</span>
+                        <p className="text-[11px] text-zinc-500">income {formatCurrency(r.incomeTotal)}</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {mtdActive ? <Badge variant="success">active MTD</Badge> : null}
+                          {r.budgetsCount > 0 ? <Badge variant="info">{r.budgetsCount} budgets</Badge> : null}
+                          {r.envelopesCount > 0 ? <Badge variant="default">{r.envelopesCount} envelopes</Badge> : null}
+                          {r.activeRecurring > 0 ? (
+                            <Badge variant="neutral">{r.activeRecurring} recurring</Badge>
+                          ) : null}
+                          {!mtdActive && r.budgetsCount === 0 && r.envelopesCount === 0 && r.activeRecurring === 0 ? (
+                            <Badge variant="warning">dormant</Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-zinc-600">
+                        <Activity className="ml-auto h-4 w-4" aria-hidden />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* Budgets / Envelopes */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <BudgetBars />
-        <EnvelopeCards />
-      </div>
-
-      <RecurringList />
+      {selected ? (
+        <UserFinanceDialog
+          row={selected}
+          email={emailByOwner.get(selected.ownerId) ?? null}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -220,7 +328,7 @@ function SortBtn({
       )}
     >
       {label}
-      <ArrowUpDown className={active ? "h-3 w-3 text-zinc-200" : "h-3 w-3 opacity-40"} />
+      <ArrowUpDown className={cn("h-3 w-3", active ? "text-zinc-200" : "opacity-40")} />
     </button>
   );
 }

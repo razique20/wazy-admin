@@ -18,8 +18,9 @@ import { nextOccurrence, simulateTrigger } from "@/lib/domain";
 import { formatCurrency, formatDate, titleize } from "@/lib/format";
 import type { RecurringTransaction } from "@/lib/types";
 
-export function RecurringList() {
+export function RecurringList({ ownerId }: { ownerId?: string } = {}) {
   const { data, refresh } = useWazy();
+  const rows = ownerId ? data.recurring.filter((r) => r.owner_id === ownerId) : data.recurring;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -50,7 +51,7 @@ export function RecurringList() {
     if (!error) await refresh();
   };
 
-  if (data.recurring.length === 0) {
+  if (rows.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -71,7 +72,7 @@ export function RecurringList() {
         <CardDescription>Trigger simulation and active toggles · {message}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        {data.recurring.map((r) => {
+        {rows.map((r) => {
           const next = nextOccurrence(r);
           return (
             <div

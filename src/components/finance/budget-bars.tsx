@@ -7,9 +7,13 @@ import { computeBudgetStatuses } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-export function BudgetBars() {
+export function BudgetBars({ ownerId }: { ownerId?: string } = {}) {
   const { data } = useWazy();
-  const statuses = computeBudgetStatuses(data.budgets, data.transactions);
+  // When scoped to an owner, only their budgets vs their own spend — the
+  // unscoped view would mix every user's limits against platform-wide spend.
+  const budgets = ownerId ? data.budgets.filter((b) => b.owner_id === ownerId) : data.budgets;
+  const transactions = ownerId ? data.transactions.filter((t) => t.owner_id === ownerId) : data.transactions;
+  const statuses = computeBudgetStatuses(budgets, transactions);
 
   if (statuses.length === 0) {
     return (

@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/ai-usage", label: "AI Usage & Quotas", icon: Bot },
   { href: "/ai-adoption", label: "AI Adoption", icon: TrendingUp },
   { href: "/collections", label: "Collections & Documents", icon: FolderKanban },
-  { href: "/finance", label: "Finance Ledger", icon: Wallet },
+  { href: "/finance", label: "Finance Activity", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },
   { href: "/system", label: "System & Data", icon: Settings2 },
 ] as const;

@@ -6,10 +6,11 @@ import { useWazy } from "@/components/providers/data-provider";
 import { envelopeProgress } from "@/lib/domain";
 import { formatCurrency } from "@/lib/format";
 
-export function EnvelopeCards() {
+export function EnvelopeCards({ ownerId }: { ownerId?: string } = {}) {
   const { data } = useWazy();
+  const envelopes = ownerId ? data.envelopes.filter((e) => e.owner_id === ownerId) : data.envelopes;
 
-  if (data.envelopes.length === 0) {
+  if (envelopes.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -30,7 +31,7 @@ export function EnvelopeCards() {
         <CardDescription>Progress toward financial targets</CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {data.envelopes.map((env) => {
+        {envelopes.map((env) => {
           const pct = envelopeProgress(env.saved_amount, env.target_amount);
           const saved = Number(env.saved_amount ?? 0);
           const target = Number(env.target_amount ?? 0);

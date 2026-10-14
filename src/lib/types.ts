@@ -114,6 +114,8 @@ export interface RecurringTransaction {
   end_date: string | null;
   is_active: boolean;
   last_logged_at: string | null;
+  /** DB default now(); optional because some client-built literals omit it. */
+  created_at?: string;
 }
 
 /**

@@ -24,8 +24,10 @@ import { BudgetBars } from "@/components/finance/budget-bars";
 import { EnvelopeCards } from "@/components/finance/envelope-cards";
 import { RecurringList } from "@/components/finance/recurring-list";
 import { useWazy } from "@/components/providers/data-provider";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
 import type { FinanceUserRow } from "@/lib/finance-monitor";
-import { formatCurrency, formatDate, titleize } from "@/lib/format";
+import { formatCurrency, formatDate, formatSplit, toNumber, titleize } from "@/lib/format";
+import { convertCurrency, isNative } from "@/lib/currency";
 
 /**
  * Drill-down for one owner's finance footprint: their raw ledger plus their
@@ -39,6 +41,7 @@ export function UserFinanceDialog({ row, email, onClose }: {
   onClose: () => void;
 }) {
   const { data, loading } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
 
   const transactions = useMemo(
     () =>
@@ -60,10 +63,26 @@ export function UserFinanceDialog({ row, email, onClose }: {
         </DialogHeader>
 
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Income (all)" value={formatCurrency(row.incomeTotal)} tone="text-emerald-400" />
-          <Stat label="Expenses (all)" value={formatCurrency(row.expensesTotal)} tone="text-red-400" />
-          <Stat label="Expenses (MTD)" value={formatCurrency(row.expensesThisMonth)} tone="text-zinc-100" />
-          <Stat label="Saved in envelopes" value={formatCurrency(row.savedTotal)} tone="text-blue-400" />
+          <Stat
+            label={isNative(displayCurrency) ? "Income (all)" : `Income (all) · ${displayCurrency}`}
+            value={formatSplit(row.incomeTotalByCurrency, displayCurrency)}
+            tone="text-emerald-400"
+          />
+          <Stat
+            label={isNative(displayCurrency) ? "Expenses (all)" : `Expenses (all) · ${displayCurrency}`}
+            value={formatSplit(row.expensesTotalByCurrency, displayCurrency)}
+            tone="text-red-400"
+          />
+          <Stat
+            label={isNative(displayCurrency) ? "Expenses (MTD)" : `Expenses (MTD) · ${displayCurrency}`}
+            value={formatSplit(row.expensesThisMonthByCurrency, displayCurrency)}
+            tone="text-zinc-100"
+          />
+          <Stat
+            label={isNative(displayCurrency) ? "Saved in envelopes" : `Saved in envelopes · ${displayCurrency}`}
+            value={formatSplit(row.savedTotalByCurrency, displayCurrency)}
+            tone="text-blue-400"
+          />
         </div>
 
         <Tabs defaultValue="ledger">
@@ -87,7 +106,10 @@ export function UserFinanceDialog({ row, email, onClose }: {
                     <TableHead>Title</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Kind</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Amount (as recorded)</TableHead>
+                    {!isNative(displayCurrency) ? (
+                      <TableHead className="text-right">Amount ({displayCurrency})</TableHead>
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -108,6 +130,14 @@ export function UserFinanceDialog({ row, email, onClose }: {
                         {t.kind === "income" ? "+" : "−"}
                         {formatCurrency(t.amount, t.currency)}
                       </TableCell>
+                      {!isNative(displayCurrency) ? (
+                        <TableCell
+                          className={t.kind === "income" ? "text-right font-semibold text-emerald-400" : "text-right font-semibold text-red-400"}
+                        >
+                          {t.kind === "income" ? "+" : "−"}
+                          {formatCurrency(convertCurrency(toNumber(t.amount), t.currency, displayCurrency), displayCurrency)}
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -131,10 +161,13 @@ export function UserFinanceDialog({ row, email, onClose }: {
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone: string }) {
+  // Multi-currency splits can be long (`AED 1,200,000 · KWD 300 · SAR 90`) —
+  // shrink one step instead of overflowing the pill, and wrap as a fallback.
+  const size = value.length <= 18 ? "text-sm" : value.length <= 30 ? "text-xs" : "text-[11px]";
   return (
     <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
-      <p className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className={`mt-1 text-sm font-semibold ${tone}`}>{value}</p>
+      <p className="break-words text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
+      <p className={`mt-1 break-words font-semibold leading-tight ${size} ${tone}`}>{value}</p>
     </div>
   );
 }

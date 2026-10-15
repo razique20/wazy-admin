@@ -25,9 +25,22 @@ export function nextOccurrence(r: RecurringTransaction, today = new Date()): str
   return iso(next);
 }
 
-/** Simulates logging a recurring transaction now: returns the finance_transaction payload. */
-export function simulateTrigger(r: RecurringTransaction, today = new Date()) {
+/**
+ * Simulates logging a recurring transaction now: returns the finance_transaction payload.
+ *
+ * `currencyForCollection` resolves the template's true currency — older
+ * mobile-app builds left the 'AED' default on recurring rows in non-AE
+ * collections, so the collection must win over a bare AED stamp (the payload
+ * is written straight to finance_transactions and later trusted by reports).
+ */
+export function simulateTrigger(
+  r: RecurringTransaction,
+  today = new Date(),
+  currencyForCollection?: (collectionId: string | null | undefined) => string | null | undefined,
+) {
   const when = nextOccurrence(r, today) ?? iso(today);
+  const owned = (currencyForCollection?.(r.collection_id) ?? "").trim().toUpperCase();
+  const stamped = (r.currency ?? "").trim().toUpperCase();
   return {
     owner_id: r.owner_id,
     collection_id: r.collection_id,
@@ -35,7 +48,7 @@ export function simulateTrigger(r: RecurringTransaction, today = new Date()) {
     category: r.category,
     title: r.title,
     amount: toNumber(r.amount),
-    currency: r.currency || "AED",
+    currency: stamped !== "" && stamped !== "AED" ? stamped : owned !== "" ? owned : "AED",
     occurred_at: when,
     note: `Recurring: ${r.title} (${r.frequency})`,
     document_id: r.collection_id,

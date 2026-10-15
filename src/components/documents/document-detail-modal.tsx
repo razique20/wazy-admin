@@ -5,9 +5,12 @@ import { FileText, Paperclip, BellRing, ReceiptText, CalendarClock, Save } from 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge, Button, Input } from "@/components/ui/primitives";
 import { useWazy } from "@/components/providers/data-provider";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
 import { updateRow } from "@/lib/hooks";
 import type { Document, DocumentStatus } from "@/lib/types";
-import { formatBytes, formatCurrency, formatDate, titleize } from "@/lib/format";
+import { collectionCurrencyResolver } from "@/lib/gcc";
+import { convertCurrency, isNative } from "@/lib/currency";
+import { formatBytes, formatCurrency, formatDate, titleize, toNumber } from "@/lib/format";
 import { customTypeName, remindersForDocument, transactionsForDocument } from "@/lib/domain";
 import { cn } from "@/lib/cn";
 
@@ -15,6 +18,7 @@ const STATUS_OPTIONS: DocumentStatus[] = ["active", "renewed", "expired", "archi
 
 export function DocumentDetailModal({ doc, onClose }: { doc: Document; onClose: () => void }) {
   const { data, refresh } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [status, setStatus] = useState<DocumentStatus>(doc.status);
   const [fee, setFee] = useState(doc.renewal_fee != null ? String(doc.renewal_fee) : "");
   const [saving, setSaving] = useState(false);
@@ -24,6 +28,9 @@ export function DocumentDetailModal({ doc, onClose }: { doc: Document; onClose: 
   const linked = transactionsForDocument(data.transactions, doc.id);
   const collection = data.collections.find((c) => c.id === doc.collection_id);
   const displayType = customTypeName(doc.doc_type, data.customDocumentTypes);
+  // The document's renewal fee lives in its collection's GCC currency — show it
+  // in that currency, with the display-currency equivalent when they differ.
+  const feeCurrencyCode = collectionCurrencyResolver(data.collections)(doc.collection_id);
 
   const save = async () => {
     setSaving(true);
@@ -69,7 +76,14 @@ export function DocumentDetailModal({ doc, onClose }: { doc: Document; onClose: 
               <span className="text-zinc-200">{doc.reminder_days ?? 30} days</span>
             </Detail>
             <Detail label="Renewal fee">
-              <span className="text-zinc-200">{doc.renewal_fee != null ? formatCurrency(doc.renewal_fee) : "—"}</span>
+              <span className="text-zinc-200">
+                {doc.renewal_fee != null ? formatCurrency(doc.renewal_fee, feeCurrencyCode) : "—"}
+              </span>
+              {doc.renewal_fee != null && !isNative(displayCurrency) && feeCurrencyCode !== displayCurrency ? (
+                <span className="block text-[11px] text-zinc-500">
+                  ≈ {formatCurrency(convertCurrency(toNumber(doc.renewal_fee), feeCurrencyCode, displayCurrency), displayCurrency)}
+                </span>
+              ) : null}
             </Detail>
             <Detail label="Assigned to">
               <span className="text-zinc-200">{doc.assigned_to ?? "—"}</span>
@@ -140,6 +154,11 @@ export function DocumentDetailModal({ doc, onClose }: { doc: Document; onClose: 
                     <span className={cn("text-sm font-semibold", t.kind === "income" ? "text-emerald-400" : "text-red-400")}>
                       {t.kind === "income" ? "+" : "−"}
                       {formatCurrency(t.amount, t.currency)}
+                      {!isNative(displayCurrency) && t.currency !== displayCurrency ? (
+                        <span className="ml-1.5 text-[11px] font-normal text-zinc-500">
+                          ≈ {formatCurrency(convertCurrency(toNumber(t.amount), t.currency, displayCurrency), displayCurrency)}
+                        </span>
+                      ) : null}
                     </span>
                   </li>
                 ))}
@@ -166,7 +185,7 @@ export function DocumentDetailModal({ doc, onClose }: { doc: Document; onClose: 
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs text-zinc-400">Renewal fee (AED)</span>
+                <span className="text-xs text-zinc-400">Renewal fee ({feeCurrencyCode})</span>
                 <Input
                   className="mt-1"
                   type="number"

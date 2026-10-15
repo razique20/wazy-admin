@@ -6,8 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, Button, EmptyState, Input } from "@/components/ui/primitives";
 import { useWazy } from "@/components/providers/data-provider";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
 import type { UserSummary, AccountStatus } from "@/lib/users";
-import { formatCurrency, formatDate, titleize } from "@/lib/format";
+import { collectionCurrencyResolver } from "@/lib/gcc";
+import { convertCurrency, isNative } from "@/lib/currency";
+import { formatCurrency, formatDate, formatSplit, titleize, toNumber } from "@/lib/format";
 import { customTypeName } from "@/lib/domain";
 import type { DocumentStatus } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -52,6 +55,8 @@ export function UserDetailModal({
   onUserChanged?: () => void;
 }) {
   const { data } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
+  const currencyForCollection = useMemo(() => collectionCurrencyResolver(data.collections), [data.collections]);
   const [tab, setTab] = useState("collections");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -217,8 +222,7 @@ export function UserDetailModal({
               {purgeInventory.budgets > 0 ? <li>· {purgeInventory.budgets} budget{purgeInventory.budgets === 1 ? "" : "s"}</li> : null}
               {user.envelopesCount > 0 ? (
                 <li>
-                  · {user.envelopesCount} savings envelope{user.envelopesCount === 1 ? "" : "s"} ({formatCurrency(user.savedTotal)}
-                  saved)
+                  · {user.envelopesCount} savings envelope{user.envelopesCount === 1 ? "" : "s"} ({formatSplit(user.savedTotalByCurrency, displayCurrency)} saved)
                 </li>
               ) : null}
               {purgeInventory.recurring > 0 ? <li>· {purgeInventory.recurring} recurring transaction{purgeInventory.recurring === 1 ? "" : "s"}</li> : null}
@@ -284,11 +288,15 @@ export function UserDetailModal({
           <MiniStat label="Collections" value={String(user.collectionsCount)} />
           <MiniStat label="Documents" value={String(user.documentsCount)} />
           <MiniStat
-            label="Net (all time)"
-            value={formatCurrency(user.netTotal)}
+            label={isNative(displayCurrency) ? "Net (all time)" : `Net (all time) · ${displayCurrency}`}
+            value={formatSplit(user.netTotalByCurrency, displayCurrency)}
             tone={user.netTotal >= 0 ? "text-emerald-400" : "text-red-400"}
           />
-          <MiniStat label="Saved" value={formatCurrency(user.savedTotal)} tone="text-blue-400" />
+          <MiniStat
+            label={isNative(displayCurrency) ? "Saved" : `Saved · ${displayCurrency}`}
+            value={formatSplit(user.savedTotalByCurrency, displayCurrency)}
+            tone="text-blue-400"
+          />
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -383,7 +391,15 @@ export function UserDetailModal({
                         <div>
                           <p className="text-sm font-medium text-zinc-100">{e.name}</p>
                           <p className="text-[11px] text-zinc-500">
-                            {formatCurrency(e.saved_amount)} of {formatCurrency(e.target_amount)}
+                            {formatCurrency(
+                              convertCurrency(toNumber(e.saved_amount), currencyForCollection(e.collection_id), displayCurrency),
+                              displayCurrency,
+                            )}{" "}
+                            of{" "}
+                            {formatCurrency(
+                              convertCurrency(toNumber(e.target_amount), currencyForCollection(e.collection_id), displayCurrency),
+                              displayCurrency,
+                            )}
                           </p>
                         </div>
                       </div>
@@ -401,10 +417,13 @@ export function UserDetailModal({
 }
 
 function MiniStat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {
+  // Multi-currency splits (`AED 1,200 · KWD 300`) are much longer than a
+  // single code — scale down and wrap instead of clipping with an ellipsis.
+  const size = value.length <= 14 ? "text-lg" : value.length <= 24 ? "text-base" : "text-sm";
   return (
     <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
       <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className={cn("mt-1 truncate text-lg font-semibold", tone)}>{value}</p>
+      <p className={cn("mt-1 break-words font-semibold leading-tight", size, tone)}>{value}</p>
     </div>
   );
 }

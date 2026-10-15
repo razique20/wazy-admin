@@ -1,5 +1,14 @@
 import type { WazyDataBundle } from "@/lib/types";
 import { monthKey, toNumber } from "@/lib/format";
+import {
+  type CurrencySplit,
+  isNative,
+  resolveRowCurrency,
+  splitAdd,
+  splitNet,
+  splitTotal,
+  type MoneyOptions,
+} from "@/lib/currency";
 
 /**
  * Finance activity monitoring (admin console).
@@ -31,6 +40,12 @@ export interface FinanceUserRow {
   envelopesCount: number;
   /** Envelope savings set aside (all time). */
   savedTotal: number;
+  /** Per-recorded-currency splits — render these with formatSplit. */
+  incomeTotalByCurrency: CurrencySplit;
+  expensesTotalByCurrency: CurrencySplit;
+  incomeThisMonthByCurrency: CurrencySplit;
+  expensesThisMonthByCurrency: CurrencySplit;
+  savedTotalByCurrency: CurrencySplit;
   /** Recurring rules defined; `activeRecurring` counts those not paused. */
   recurringCount: number;
   activeRecurring: number;
@@ -53,8 +68,12 @@ export interface FinancePlatformTotals {
   /** Feature adoption: distinct owners using each feature. */
   usersWithTransactions: number;
   usersWithBudgets: number;
-  usersWithEnvelopes: number;
   usersWithRecurring: number;
+  usersWithEnvelopes: number;
+  /** Per-recorded-currency splits of the MTD money figures. */
+  expensesThisMonthByCurrency: CurrencySplit;
+  incomeThisMonthByCurrency: CurrencySplit;
+  netThisMonthByCurrency: CurrencySplit;
   currency: string;
 }
 
@@ -74,6 +93,11 @@ function blankRow(ownerId: string): FinanceUserRow {
     budgetsCount: 0,
     envelopesCount: 0,
     savedTotal: 0,
+    incomeTotalByCurrency: {},
+    expensesTotalByCurrency: {},
+    incomeThisMonthByCurrency: {},
+    expensesThisMonthByCurrency: {},
+    savedTotalByCurrency: {},
     recurringCount: 0,
     activeRecurring: 0,
     lastEntryAt: null,
@@ -95,7 +119,10 @@ function touch(row: FinanceUserRow, at: string | null | undefined) {
 export function computeFinanceUserRows(
   data: Pick<WazyDataBundle, "transactions" | "budgets" | "envelopes" | "recurring">,
   reference = new Date(),
+  options: MoneyOptions = {},
 ): FinanceUserRow[] {
+  const display = options.displayCurrency ?? "AED";
+  const currencyFor = options.currencyForCollection ?? (() => "AED");
   const thisMonth = monthKey(reference);
   const byOwner = new Map<string, FinanceUserRow>();
   const get = (ownerId: string): FinanceUserRow => {
@@ -109,16 +136,21 @@ export function computeFinanceUserRows(
 
   for (const t of data.transactions) {
     const row = get(t.owner_id);
+    // Bucket each row in its own GCC currency; the scalar fields are derived
+    // from the splits below so SAR/KWD/QAR/BHD/OMR are never summed raw.
     const amount = toNumber(t.amount);
     row.transactionsCount += 1;
     const mtd = monthKey(t.occurred_at) === thisMonth;
     if (mtd) row.transactionsThisMonth += 1;
+    // The row's true currency (collection-resolved — the legacy 'AED' stamp
+    // on non-AE collections is ignored, see resolveRowCurrency).
+    const currency = resolveRowCurrency(t.currency, t.collection_id, currencyFor);
     if (t.kind === "income") {
-      row.incomeTotal += amount;
-      if (mtd) row.incomeThisMonth += amount;
+      splitAdd(row.incomeTotalByCurrency, amount, currency);
+      if (mtd) splitAdd(row.incomeThisMonthByCurrency, amount, currency);
     } else {
-      row.expensesTotal += amount;
-      if (mtd) row.expensesThisMonth += amount;
+      splitAdd(row.expensesTotalByCurrency, amount, currency);
+      if (mtd) splitAdd(row.expensesThisMonthByCurrency, amount, currency);
     }
     if (!row.lastEntryAt || t.occurred_at > row.lastEntryAt) row.lastEntryAt = t.occurred_at;
     touch(row, t.created_at);
@@ -133,7 +165,8 @@ export function computeFinanceUserRows(
   for (const e of data.envelopes) {
     const row = get(e.owner_id);
     row.envelopesCount += 1;
-    row.savedTotal += toNumber(e.saved_amount);
+    // Envelopes have no currency column — they live in their collection's currency.
+    splitAdd(row.savedTotalByCurrency, toNumber(e.saved_amount), currencyFor(e.collection_id));
     touch(row, e.created_at);
   }
 
@@ -144,13 +177,15 @@ export function computeFinanceUserRows(
     touch(row, r.created_at);
   }
 
+  // Scalars are derived from the per-currency splits so one display mode
+  // (native or a converted currency) drives every figure consistently.
   const rows = [...byOwner.values()].map((row) => ({
     ...row,
-    incomeTotal: round2(row.incomeTotal),
-    expensesTotal: round2(row.expensesTotal),
-    incomeThisMonth: round2(row.incomeThisMonth),
-    expensesThisMonth: round2(row.expensesThisMonth),
-    savedTotal: round2(row.savedTotal),
+    incomeTotal: round2(splitTotal(row.incomeTotalByCurrency, display)),
+    expensesTotal: round2(splitTotal(row.expensesTotalByCurrency, display)),
+    incomeThisMonth: round2(splitTotal(row.incomeThisMonthByCurrency, display)),
+    expensesThisMonth: round2(splitTotal(row.expensesThisMonthByCurrency, display)),
+    savedTotal: round2(splitTotal(row.savedTotalByCurrency, display)),
   }));
 
   rows.sort((a, b) => {
@@ -165,7 +200,10 @@ export function computeFinanceUserRows(
 export function computeFinancePlatformTotals(
   data: Pick<WazyDataBundle, "transactions" | "budgets" | "envelopes" | "recurring">,
   reference = new Date(),
+  options: MoneyOptions = {},
 ): FinancePlatformTotals {
+  const display = options.displayCurrency ?? "AED";
+  const currencyFor = options.currencyForCollection;
   const thisMonth = monthKey(reference);
   const owners = {
     finance: new Set<string>(),
@@ -177,8 +215,8 @@ export function computeFinancePlatformTotals(
   };
   let transactionsTotal = 0;
   let transactionsThisMonth = 0;
-  let expensesThisMonth = 0;
-  let incomeThisMonth = 0;
+  const expensesSplit: CurrencySplit = {};
+  const incomeSplit: CurrencySplit = {};
 
   for (const t of data.transactions) {
     owners.finance.add(t.owner_id);
@@ -187,9 +225,13 @@ export function computeFinancePlatformTotals(
     if (monthKey(t.occurred_at) === thisMonth) {
       owners.active.add(t.owner_id);
       transactionsThisMonth += 1;
+      // Bucket per true (collection-resolved) currency so the MTD figures
+      // stay exact in every display mode (native shows all legs, converted
+      // sums them).
       const amount = toNumber(t.amount);
-      if (t.kind === "income") incomeThisMonth += amount;
-      else expensesThisMonth += amount;
+      const currency = resolveRowCurrency(t.currency, t.collection_id, currencyFor);
+      if (t.kind === "income") splitAdd(incomeSplit, amount, currency);
+      else splitAdd(expensesSplit, amount, currency);
     }
   }
   for (const b of data.budgets) {
@@ -205,6 +247,9 @@ export function computeFinancePlatformTotals(
     owners.recurring.add(r.owner_id);
   }
 
+  const expensesThisMonth = splitTotal(expensesSplit, display);
+  const incomeThisMonth = splitTotal(incomeSplit, display);
+
   return {
     usersWithFinanceData: owners.finance.size,
     activeUsersThisMonth: owners.active.size,
@@ -217,6 +262,9 @@ export function computeFinancePlatformTotals(
     usersWithBudgets: owners.budgets.size,
     usersWithEnvelopes: owners.envelopes.size,
     usersWithRecurring: owners.recurring.size,
-    currency: "AED",
+    expensesThisMonthByCurrency: expensesSplit,
+    incomeThisMonthByCurrency: incomeSplit,
+    netThisMonthByCurrency: splitNet(incomeSplit, expensesSplit),
+    currency: isNative(display) ? "native" : display,
   };
 }

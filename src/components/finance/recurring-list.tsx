@@ -15,12 +15,14 @@ import {
 import { useWazy } from "@/components/providers/data-provider";
 import { insertRow, updateRow } from "@/lib/hooks";
 import { nextOccurrence, simulateTrigger } from "@/lib/domain";
+import { collectionCurrencyResolver } from "@/lib/gcc";
 import { formatCurrency, formatDate, titleize } from "@/lib/format";
 import type { RecurringTransaction } from "@/lib/types";
 
 export function RecurringList({ ownerId }: { ownerId?: string } = {}) {
   const { data, refresh } = useWazy();
   const rows = ownerId ? data.recurring.filter((r) => r.owner_id === ownerId) : data.recurring;
+  const currencyForCollection = collectionCurrencyResolver(data.collections);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -35,7 +37,7 @@ export function RecurringList({ ownerId }: { ownerId?: string } = {}) {
   const triggerNow = async (r: RecurringTransaction) => {
     setBusyId(r.id);
     setMessage(null);
-    const payload = simulateTrigger(r) as Record<string, unknown>;
+    const payload = simulateTrigger(r, new Date(), currencyForCollection) as Record<string, unknown>;
     // Recurring rows don't carry a document reference; keep it null.
     payload.document_id = null;
     const { error } = await insertRow("finance_transactions", payload);

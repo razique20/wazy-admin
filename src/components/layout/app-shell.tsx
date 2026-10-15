@@ -17,6 +17,7 @@ import {
   X,
   RefreshCw,
   TrendingUp,
+  Globe2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/primitives";
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/ai-usage", label: "AI Usage & Quotas", icon: Bot },
   { href: "/ai-adoption", label: "AI Adoption", icon: TrendingUp },
   { href: "/collections", label: "Collections & Documents", icon: FolderKanban },
+  { href: "/gcc", label: "GCC Overview", icon: Globe2 },
   { href: "/finance", label: "Finance Activity", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },
   { href: "/system", label: "System & Data", icon: Settings2 },

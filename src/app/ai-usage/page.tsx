@@ -193,7 +193,8 @@ export default function AiUsagePage() {
             <div>
               <CardTitle>AI Quota Usage</CardTitle>
               <CardDescription>
-                Monthly call counters per user · limits are enforced in the app per tier (Free 3/2 · Plus 30/20 · Business 100/60)
+                Monthly call counters per user · limits are enforced in the app per tier (
+                {quotaLimitSummary()})
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -347,3 +348,19 @@ export default function AiUsagePage() {
     </div>
   );
 }
+
+/**
+ * "Free 3/2 · Plus 15/10 · Business 40/25" — derived from AI_QUOTA_LIMITS
+ * (which mirrors the Flutter app's TierLimits) so the caption can never
+ * drift from the numbers the table actually enforces.
+ */
+function quotaLimitSummary(): string {
+  return (Object.keys(TIER_ORDER) as UserTier[])
+    .map((tier) => {
+      const limits = AI_QUOTA_LIMITS[tier];
+      return `${TIER_ORDER[tier]} ${limits.groq_ai_summary}/${limits.groq_ai_budget_plan}`;
+    })
+    .join(" · ");
+}
+
+const TIER_ORDER: Record<UserTier, string> = { free: "Free", plus: "Plus", business: "Business" };

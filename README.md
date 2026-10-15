@@ -89,6 +89,32 @@ so the user drops back automatically — no cron job needed. If you already ran 
 version of `supabase/user_tiers_schema.sql`, re-run it: it adds the `expires_at` columns
 idempotently (`add column if not exists`).
 
+## GCC multi-currency (native vs converted)
+
+Every collection belongs to one of the six GCC states (`collections.country_code`), and
+each state has its own currency — AED, SAR, KWD, QAR, BHD, OMR. Documents inherit their
+currency from their collection; transactions carry their own `currency` column.
+
+- **Default · as recorded** — the console's default display mode. Every money figure
+  renders in the exact currency the GCC user entered it in (`AED 30,000 · KWD 800`),
+  never summed across currencies. Aggregations that mix currencies use a per-currency
+  split (`CurrencySplit`) rendered with `formatSplit`.
+- **Converted** — picking a currency in the header selector converts every aggregate
+  into it using the pegged USD cross rates in `src/lib/currency.ts` (override the KWD
+  rate with `NEXT_PUBLIC_FX_KWD_AED`).
+- **GCC Overview (`/gcc`)** — the platform rolled up per country (exact per-currency
+  splits plus a "native" column showing each country's own-currency figure) and per
+  currency (the "Default" scope: exact amounts, no FX applied).
+- **Row currency resolution** — `resolveRowCurrency` trusts a row's `currency` stamp
+  unless it is empty or the bare default `AED` on a **non-AE** collection, in which
+  case the collection's currency wins. Older mobile-app builds constructed
+  transactions without a currency, so `AED` was stored even in Kuwaiti/Saudi …
+  workspaces; this rule keeps those rows reading as KWD/SAR/… while still honouring
+  genuinely foreign-currency rows.
+- **Mobile app** — `TransactionFormSheet`, the document-renewal log and the credit
+  flows now stamp `DocumentCollectionService.activeCurrency` (the active collection's
+  GCC currency) on every `FinanceTransaction` / `RecurringTransaction` they create.
+
 ## Tech stack
 
 Next.js 14 App Router · TypeScript · Tailwind CSS (dark theme: slate-950 base,

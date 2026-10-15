@@ -26,20 +26,14 @@ import {
 } from "@/components/ui";
 import type { Document, DocumentStatus } from "@/lib/types";
 import { customTypeName } from "@/lib/domain";
-import { formatCurrency, formatDate, titleize } from "@/lib/format";
+import { collectionCurrencyResolver, countryForDocument, GCC_COUNTRY_LABELS } from "@/lib/gcc";
+import { isNative } from "@/lib/currency";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
+import { convertCurrency } from "@/lib/currency";
+import { formatCurrency, formatDate, titleize, toNumber } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 type SortField = "display_name" | "expires_at" | "renewal_fee" | "created_at";
-
-// GCC country codes (matches mobile app: lib/models/gcc_country.dart)
-const GCC_COUNTRIES = [
-  { code: "AE", label: "UAE" },
-  { code: "SA", label: "Saudi Arabia" },
-  { code: "QA", label: "Qatar" },
-  { code: "KW", label: "Kuwait" },
-  { code: "BH", label: "Bahrain" },
-  { code: "OM", label: "Oman" },
-] as const;
 
 interface Filters {
   query: string;
@@ -55,33 +49,23 @@ const INITIAL_FILTERS: Filters = { query: "", collection: "all", status: "all", 
 
 export default function CollectionsPage() {
   const { data, loading, error } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
+  const currencyForCollection = useMemo(
+    () => collectionCurrencyResolver(data.collections),
+    [data.collections],
+  );
   
-  // Extract unique countries from documents (documents have location field with country info)
+  // GCC countries present in the data — resolved from the collection's
+  // country_code first (supabase/gcc_migration.sql), falling back to the
+  // document location string for rows written before that column existed.
   const countries = useMemo(() => {
     const countrySet = new Set<string>();
     for (const doc of data.documents) {
-      // Try to extract country from location field (e.g., "Dubai Municipality (Dubai)" or "UAE")
-      const loc = doc.location?.toLowerCase() ?? "";
-      if (loc.includes("uae") || loc.includes("united arab emirates") || loc.includes("dubai") || 
-          loc.includes("abu dhabi") || loc.includes("sharjah") || loc.includes("ajman") ||
-          loc.includes("umm al quwain") || loc.includes("ras al khaimah") || loc.includes("fujairah")) {
-        countrySet.add("AE");
-      } else if (loc.includes("saudi") || loc.includes("ksa") || loc.includes("riyadh") || 
-                 loc.includes("jeddah") || loc.includes("dammam")) {
-        countrySet.add("SA");
-      } else if (loc.includes("qatar") || loc.includes("doha")) {
-        countrySet.add("QA");
-      } else if (loc.includes("kuwait")) {
-        countrySet.add("KW");
-      } else if (loc.includes("bahrain")) {
-        countrySet.add("BH");
-      } else if (loc.includes("oman") || loc.includes("muscat")) {
-        countrySet.add("OM");
-      }
+      countrySet.add(countryForDocument(doc, data.collections));
     }
     return ["all", ...Array.from(countrySet).sort()];
-  }, [data.documents]);
+  }, [data.documents, data.collections]);
   const [sort, setSort] = useState<{ field: SortField; dir: "asc" | "desc" }>({
     field: "expires_at",
     dir: "asc",
@@ -97,26 +81,7 @@ export default function CollectionsPage() {
       if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
       if (filters.status !== "all" && d.status !== filters.status) return false;
       if (filters.docType !== "all" && d.doc_type !== filters.docType) return false;
-      if (filters.country !== "all") {
-        const loc = d.location?.toLowerCase() ?? "";
-        const countryMatch = filters.country === "AE" && (
-          loc.includes("uae") || loc.includes("united arab emirates") || loc.includes("dubai") ||
-          loc.includes("abu dhabi") || loc.includes("sharjah") || loc.includes("ajman") ||
-          loc.includes("umm al quwain") || loc.includes("ras al khaimah") || loc.includes("fujairah") ||
-          loc.includes("emirates") || !loc // UAE is default, no location = assume UAE
-        );
-        const saMatch = filters.country === "SA" && (
-          loc.includes("saudi") || loc.includes("ksa") || loc.includes("riyadh") ||
-          loc.includes("jeddah") || loc.includes("dammam") || loc.includes("khobar")
-        );
-        const qaMatch = filters.country === "QA" && (
-          loc.includes("qatar") || loc.includes("doha")
-        );
-        const kwMatch = filters.country === "KW" && loc.includes("kuwait");
-        const bhMatch = filters.country === "BH" && loc.includes("bahrain");
-        const omMatch = filters.country === "OM" && (loc.includes("oman") || loc.includes("muscat"));
-        if (!countryMatch && !saMatch && !qaMatch && !kwMatch && !bhMatch && !omMatch) return false;
-      }
+      if (filters.country !== "all" && countryForDocument(d, data.collections) !== filters.country) return false;
       if (filters.from && d.expires_at && d.expires_at < filters.from) return false;
       if (filters.to && d.expires_at && d.expires_at > filters.to) return false;
       return true;
@@ -135,7 +100,7 @@ export default function CollectionsPage() {
           return (a.expires_at ?? "9999").localeCompare(b.expires_at ?? "9999") * dir;
       }
     });
-  }, [data.documents, filters, sort]);
+  }, [data.documents, data.collections, filters, sort]);
 
   const toggleSort = (field: SortField) =>
     setSort((s) => ({ field, dir: s.field === field && s.dir === "asc" ? "desc" : "asc" }));
@@ -220,7 +185,7 @@ export default function CollectionsPage() {
             <SelectContent>
               {countries.map((c) => (
                 <SelectItem key={c} value={c}>
-                  {c === "all" ? "All countries" : GCC_COUNTRIES.find((g) => g.code === c)?.label ?? c}
+                  {c === "all" ? "All countries (GCC)" : GCC_COUNTRY_LABELS[c] ?? c}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -271,7 +236,12 @@ export default function CollectionsPage() {
                   </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>
-                    <SortHeader label="Fee" field="renewal_fee" sort={sort} onToggle={toggleSort} />
+                    <SortHeader
+                      label={`Fee (${displayCurrency})`}
+                      field="renewal_fee"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
                   </TableHead>
                   <TableHead />
                 </TableRow>
@@ -280,6 +250,7 @@ export default function CollectionsPage() {
                 {rows.map((doc) => {
                   const days = daysUntil(doc.expires_at);
                   const collection = data.collections.find((c) => c.id === doc.collection_id);
+                  const docCountry = countryForDocument(doc, data.collections);
                   return (
                     <TableRow key={doc.id} className="cursor-pointer" onClick={() => setSelected(doc)}>
                       <TableCell>
@@ -291,9 +262,14 @@ export default function CollectionsPage() {
                           <span className="flex items-center gap-1.5">
                             <span className={cnDot(collection.is_personal)} />
                             {collection.name}
+                            {collection.country_code ? (
+                              <Badge variant="neutral" className="shrink-0">
+                                {collection.country_code}
+                              </Badge>
+                            ) : null}
                           </span>
                         ) : (
-                          <span className="text-zinc-600">—</span>
+                          <span className="text-zinc-600">— {docCountry}</span>
                         )}
                       </TableCell>
                       <TableCell>{titleize(customTypeName(doc.doc_type, data.customDocumentTypes))}</TableCell>
@@ -308,7 +284,31 @@ export default function CollectionsPage() {
                       <TableCell>
                         <Badge variant={statusVariant(doc.status)}>{titleize(doc.status)}</Badge>
                       </TableCell>
-                      <TableCell>{doc.renewal_fee != null ? formatCurrency(doc.renewal_fee) : "—"}</TableCell>
+                      <TableCell>
+                        {doc.renewal_fee != null ? (
+                          <span className="text-zinc-200">
+                            {(() => {
+                              const feeCurrency = currencyForCollection(doc.collection_id);
+                              // Native mode: keep the fee in its collection's currency —
+                              // formatCurrency(x, "native") has no ISO code to render.
+                              const shown = isNative(displayCurrency)
+                                ? feeCurrency
+                                : displayCurrency;
+                              return formatCurrency(
+                                convertCurrency(toNumber(doc.renewal_fee), feeCurrency, shown),
+                                shown,
+                              );
+                            })()}
+                            {!isNative(displayCurrency) && currencyForCollection(doc.collection_id) !== displayCurrency ? (
+                              <span className="block text-[11px] text-zinc-500">
+                                {formatCurrency(doc.renewal_fee, currencyForCollection(doc.collection_id))} original
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"

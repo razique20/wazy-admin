@@ -255,4 +255,77 @@ describe("computeUserSummaries", () => {
     );
     expect(users[0].remindersCount).toBe(2);
   });
+
+  it("converts mixed GCC currencies into the requested display currency", () => {
+    const data = bundle({
+      transactions: [
+        {
+          id: "t1",
+          owner_id: "u1",
+          collection_id: "c-sa",
+          kind: "expense",
+          category: "rent",
+          title: "Rent",
+          amount: 375,
+          currency: "SAR",
+          occurred_at: "2026-09-03",
+          note: null,
+          document_id: null,
+          created_at: "2026-09-03",
+        },
+        {
+          id: "t2",
+          owner_id: "u1",
+          collection_id: null,
+          kind: "income",
+          category: "sales",
+          title: "Sale",
+          amount: 100,
+          currency: "AED",
+          occurred_at: "2026-09-04",
+          note: null,
+          document_id: null,
+          created_at: "2026-09-04",
+        },
+      ],
+      envelopes: [
+        {
+          id: "e1",
+          owner_id: "u1",
+          collection_id: "c-sa",
+          name: "Goal",
+          target_amount: 1000,
+          saved_amount: 250,
+          monthly_contribution: 100,
+          document_id: null,
+          created_at: "2026-08-01",
+        },
+      ],
+    });
+
+    const opts = {
+      displayCurrency: "AED",
+      currencyForCollection: (id: string | null | undefined) => (id === "c-sa" ? "SAR" : "AED"),
+    };
+    const aed = computeUserSummaries(data, [], REF, false, [], opts)[0];
+    expect(aed.expensesTotal).toBeCloseTo(367.25, 2);
+    expect(aed.incomeTotal).toBe(100);
+    expect(aed.netTotal).toBeCloseTo(-267.25, 2);
+    // 250 SAR envelope → 244.83 AED.
+    expect(aed.savedTotal).toBeCloseTo(244.83, 2);
+
+    // The same data viewed in SAR keeps the SAR figures intact.
+    const sar = computeUserSummaries(
+      data,
+      [],
+      REF,
+      false,
+      [],
+      { ...opts, displayCurrency: "SAR" },
+    )[0];
+    expect(sar.expensesTotal).toBe(375);
+    // 100 AED → SAR = 100 / 0.979333… = 102.11 SAR.
+    expect(sar.incomeTotal).toBeCloseTo(102.11, 2);
+    expect(sar.savedTotal).toBe(250);
+  });
 });

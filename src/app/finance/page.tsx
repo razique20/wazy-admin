@@ -23,7 +23,11 @@ import {
   TableRow,
 } from "@/components/ui";
 import { computeFinancePlatformTotals, computeFinanceUserRows, type FinanceUserRow } from "@/lib/finance-monitor";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { collectionCurrencyResolver } from "@/lib/gcc";
+import { isNative } from "@/lib/currency";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
+import { CurrencySelect } from "@/components/ui/currency-select";
+import { formatDate, formatSplit } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 /**
@@ -44,6 +48,7 @@ interface AuthUser {
 
 export default function FinancePage() {
   const { data, loading, error, lastUpdated } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ field: SortField; dir: "asc" | "desc" }>({
@@ -76,8 +81,16 @@ export default function FinancePage() {
     return map;
   }, [authUsers]);
 
-  const totals = useMemo(() => computeFinancePlatformTotals(data, new Date()), [data]);
-  const rows = useMemo(() => computeFinanceUserRows(data, new Date()), [data]);
+  const moneyOpts = useMemo(
+    () => ({
+      displayCurrency,
+      currencyForCollection: collectionCurrencyResolver(data.collections),
+    }),
+    [displayCurrency, data.collections],
+  );
+
+  const totals = useMemo(() => computeFinancePlatformTotals(data, new Date(), moneyOpts), [data, moneyOpts]);
+  const rows = useMemo(() => computeFinanceUserRows(data, new Date(), moneyOpts), [data, moneyOpts]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -132,16 +145,16 @@ export default function FinancePage() {
           loading={loading}
         />
         <KpiCard
-          title="Expenses This Month"
-          value={formatCurrency(totals.expensesThisMonth)}
-          subvalue={`${totals.transactionsThisMonth} transactions MTD · net ${formatCurrency(totals.netThisMonth)}`}
+          title={isNative(displayCurrency) ? "Expenses This Month" : `Expenses This Month (${displayCurrency})`}
+          value={formatSplit(totals.expensesThisMonthByCurrency, displayCurrency)}
+          subvalue={`${totals.transactionsThisMonth} transactions MTD · net ${formatSplit(totals.netThisMonthByCurrency, displayCurrency)}`}
           icon={<TrendingDown className="h-4 w-4" />}
           accent="red"
           loading={loading}
         />
         <KpiCard
-          title="Income This Month"
-          value={formatCurrency(totals.incomeThisMonth)}
+          title={isNative(displayCurrency) ? "Income This Month" : `Income This Month (${displayCurrency})`}
+          value={formatSplit(totals.incomeThisMonthByCurrency, displayCurrency)}
           subvalue={`${totals.transactionsTotal} transactions logged all-time`}
           icon={<TrendingUp className="h-4 w-4" />}
           accent="emerald"
@@ -165,10 +178,13 @@ export default function FinancePage() {
               <CardTitle>User Finance Activity</CardTitle>
               <CardDescription>
                 {rows.length} user{rows.length === 1 ? "" : "s"} with finance data · click a row to inspect their ledger
-                {lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
+                {lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""} · money{" "}
+                {isNative(displayCurrency) ? "as recorded (per currency)" : `shown in ${displayCurrency}`}
               </CardDescription>
             </div>
-            <div className="relative w-full sm:w-72">
+            <div className="flex items-center gap-3">
+              <CurrencySelect showIcon={false} />
+              <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
               <Input
                 className="pl-9"
@@ -176,6 +192,7 @@ export default function FinancePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -219,14 +236,19 @@ export default function FinancePage() {
                   </TableHead>
                   <TableHead className="text-right">
                     <SortBtn
-                      label="Spend (MTD)"
+                      label={isNative(displayCurrency) ? "Spend MTD" : `Spend MTD (${displayCurrency})`}
                       field="expensesThisMonth"
                       sort={sort}
                       onToggle={() => toggle("expensesThisMonth")}
                     />
                   </TableHead>
                   <TableHead className="text-right">
-                    <SortBtn label="Spend (all)" field="expensesTotal" sort={sort} onToggle={() => toggle("expensesTotal")} />
+                    <SortBtn
+                      label={isNative(displayCurrency) ? "Spend all" : `Spend all (${displayCurrency})`}
+                      field="expensesTotal"
+                      sort={sort}
+                      onToggle={() => toggle("expensesTotal")}
+                    />
                   </TableHead>
                   <TableHead>Tracking tools</TableHead>
                   <TableHead aria-label="Open" />
@@ -264,11 +286,17 @@ export default function FinancePage() {
                         <p className="text-[11px] text-zinc-500">{r.transactionsThisMonth} MTD</p>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-semibold text-red-400">{formatCurrency(r.expensesThisMonth)}</span>
+                        <span className="font-semibold text-red-400">
+                          {formatSplit(r.expensesThisMonthByCurrency, displayCurrency)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-semibold text-zinc-300">{formatCurrency(r.expensesTotal)}</span>
-                        <p className="text-[11px] text-zinc-500">income {formatCurrency(r.incomeTotal)}</p>
+                        <span className="font-semibold text-zinc-300">
+                          {formatSplit(r.expensesTotalByCurrency, displayCurrency)}
+                        </span>
+                        <p className="text-[11px] text-zinc-500">
+                          income {formatSplit(r.incomeTotalByCurrency, displayCurrency)}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">

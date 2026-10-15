@@ -49,7 +49,7 @@
 | Feature | Status | Where |
 |---|---|---|
 | View per-user AI usage for month | ✅ Implemented | `/ai-usage` page, `computeAiUsage` rollup |
-| Per-tier quota limits (3/2 · 30/20 · 100/60) | ✅ Implemented | `AI_QUOTA_LIMITS`, over-limit badges |
+| Per-tier quota limits (3/2 · 15/10 · 40/25 — mirrors the Flutter app's `TierLimits`) | ✅ Implemented | `AI_QUOTA_LIMITS`, over-limit badges |
 | Reset single user quota | ✅ Implemented | `POST /api/ai-quota/reset` (userId + optional feature + month) |
 | Reset all quotas (monthly bulk) | ✅ Implemented | Same route (`allUsers: true`) |
 | Usage analytics (feature totals, top users) | ✅ Implemented | Feature cards + leaderboard ordering, dashboard AI widget |

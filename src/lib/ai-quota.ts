@@ -8,11 +8,18 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   groq_ai_budget_plan: "AI Budget Plan",
 };
 
-/** Monthly call limits per tier, mirroring the app's TierLimits. */
+/**
+ * Monthly call limits per tier — must mirror the Flutter app's
+ * `TierLimits` in `lib/models/subscription_tier.dart` exactly
+ * (`groqAiSummaryMonthlyQuota` / `aiBudgetPlanMonthlyQuota`):
+ * free 3/2, plus 15/10, business 40/25. The app is the source of truth:
+ * it enforces these when the user generates a summary or budget plan, so a
+ * console that shows different numbers misreports who is over quota.
+ */
 export const AI_QUOTA_LIMITS: Record<UserTier, Record<string, number>> = {
   free: { groq_ai_summary: 3, groq_ai_budget_plan: 2 },
-  plus: { groq_ai_summary: 30, groq_ai_budget_plan: 20 },
-  business: { groq_ai_summary: 100, groq_ai_budget_plan: 60 },
+  plus: { groq_ai_summary: 15, groq_ai_budget_plan: 10 },
+  business: { groq_ai_summary: 40, groq_ai_budget_plan: 25 },
 };
 
 /** Month key in the same `YYYY-MM` format the table stores. */

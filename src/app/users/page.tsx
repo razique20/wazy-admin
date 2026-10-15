@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eraser, Loader2, RefreshCw, Search, Users as UsersIcon } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
 import { UserDetailModal } from "@/components/users/user-detail-modal";
+import { statValueSizeClass } from "@/components/dashboard/kpi-card";
 import {
   Badge,
   Button,
@@ -23,7 +25,9 @@ import {
   TableRow,
 } from "@/components/ui/primitives";
 import { computeUserSummaries, type DeletedUserRecord, type AccountStatus, type UserSummary } from "@/lib/users";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { collectionCurrencyResolver } from "@/lib/gcc";
+import { isNative } from "@/lib/currency";
+import { formatDate, formatSplit } from "@/lib/format";
 import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 import { cn } from "@/lib/cn";
 
@@ -66,6 +70,7 @@ type SortField = "email" | "documentsCount" | "netTotal" | "lastActivity" | "exp
 
 export default function UsersPage() {
   const { data, loading, error, refresh } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [authSource, setAuthSource] = useState<string>("loading");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -120,9 +125,25 @@ export default function UsersPage() {
     void loadAuthUsers();
   }, []);
 
+  const moneyOpts = useMemo(
+    () => ({
+      displayCurrency,
+      currencyForCollection: collectionCurrencyResolver(data.collections),
+    }),
+    [displayCurrency, data.collections],
+  );
+
   const users = useMemo(
-    () => computeUserSummaries(data, authUsers, new Date(), authSource === "service_role" || authSource === "direct_pg", deletedUsers),
-    [data, authUsers, authSource, deletedUsers],
+    () =>
+      computeUserSummaries(
+        data,
+        authUsers,
+        new Date(),
+        authSource === "service_role" || authSource === "direct_pg",
+        deletedUsers,
+        moneyOpts,
+      ),
+    [data, authUsers, authSource, deletedUsers, moneyOpts],
   );
   const orphanedCount = useMemo(() => users.filter((u) => u.orphaned).length, [users]);
   // Stale auth reads (replica lag / incidents) can list deleted users —
@@ -161,6 +182,19 @@ export default function UsersPage() {
     }),
     [users, liveCount],
   );
+
+  // Platform-wide net, kept per currency so the as-recorded view can show
+  // "AED 1,200 · SAR 300" instead of a meaningless cross-currency sum.
+  const netTotals = useMemo(() => {
+    const split: Record<string, number> = {};
+    for (const u of users) {
+      for (const [code, amount] of Object.entries(u.netTotalByCurrency)) {
+        split[code] = (split[code] ?? 0) + amount;
+      }
+    }
+    return split;
+  }, [users]);
+  const netTotalsLabel = formatSplit(netTotals, displayCurrency);
 
   const toggleSort = (field: SortField) =>
     setSort((s) => ({ field, dir: s.field === field && s.dir === "asc" ? "desc" : "asc" }));
@@ -216,7 +250,15 @@ export default function UsersPage() {
           hint={authSource === "service_role" || authSource === "direct_pg" ? "from auth.users" : "from data owners"}
         />
         <Stat label="Documents held" value={String(totals.documents)} tone="text-white" />
-        <Stat label="Net cash flow (all users)" value={formatCurrency(totals.net)} tone={totals.net >= 0 ? "text-emerald-400" : "text-red-400"} />
+        <Stat
+          label={
+            isNative(displayCurrency)
+              ? "Net cash flow (all users)"
+              : `Net cash flow (all users) · ${displayCurrency}`
+          }
+          value={netTotalsLabel}
+          tone={totals.net >= 0 ? "text-emerald-400" : "text-red-400"}
+        />
         <Stat label="Urgent / expired docs" value={String(totals.urgent)} tone={totals.urgent > 0 ? "text-amber-400" : "text-white"} />
       </div>
 
@@ -267,6 +309,7 @@ export default function UsersPage() {
               <CardTitle>Users Directory</CardTitle>
               <CardDescription>
                 Every platform user with their collections, documents and financial footprint · click a row to drill down
+                {isNative(displayCurrency) ? " · money as recorded (per currency)" : ` · money shown in ${displayCurrency}`}
               </CardDescription>
             </div>
             <div className="flex items-center gap-3">
@@ -324,10 +367,20 @@ export default function UsersPage() {
                   </TableHead>
                   <TableHead>Expiry risk</TableHead>
                   <TableHead className="text-right">
-                    <Sort label="MTD Expenses" field="expensesThisMonth" sort={sort} onToggle={toggleSort} />
+                    <Sort
+                      label={isNative(displayCurrency) ? "MTD Expenses" : `MTD Expenses (${displayCurrency})`}
+                      field="expensesThisMonth"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
                   </TableHead>
                   <TableHead className="text-right">
-                    <Sort label="Net (all time)" field="netTotal" sort={sort} onToggle={toggleSort} />
+                    <Sort
+                      label={isNative(displayCurrency) ? "Net all time" : `Net all time (${displayCurrency})`}
+                      field="netTotal"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
                   </TableHead>
                   <TableHead>
                     <Sort label="Last activity" field="lastActivity" sort={sort} onToggle={toggleSort} />
@@ -388,10 +441,12 @@ export default function UsersPage() {
                         <span className="text-xs text-emerald-400">Healthy</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(u.expensesThisMonth)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatSplit(u.expensesThisMonthByCurrency, displayCurrency)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <span className={u.netTotal >= 0 ? "font-semibold text-emerald-400" : "font-semibold text-red-400"}>
-                        {formatCurrency(u.netTotal)}
+                        {formatSplit(u.netTotalByCurrency, displayCurrency)}
                       </span>
                     </TableCell>
                     <TableCell>{formatDate(u.lastActivity)}</TableCell>
@@ -454,8 +509,8 @@ function Stat({ label, value, hint, tone = "text-white" }: { label: string; valu
     <Card>
       <CardContent className="pt-5">
         <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className={cn("mt-1 text-2xl font-semibold", tone)}>{value}</p>
-        {hint ? <p className="mt-0.5 text-[11px] text-zinc-600">{hint}</p> : null}
+        <p className={cn("mt-1 break-words font-semibold leading-tight", statValueSizeClass(value), tone)}>{value}</p>
+        {hint ? <p className="mt-0.5 break-words text-[11px] text-zinc-600">{hint}</p> : null}
       </CardContent>
     </Card>
   );

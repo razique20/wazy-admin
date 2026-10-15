@@ -1,5 +1,13 @@
 import type { WazyDataBundle } from "@/lib/types";
 import { monthKey, toNumber } from "@/lib/format";
+import {
+  type CurrencySplit,
+  resolveRowCurrency,
+  splitAdd,
+  splitNet,
+  splitTotal,
+  type MoneyOptions,
+} from "@/lib/currency";
 
 /**
  * Minimal auth.users shape needed to derive the account status. Only `id` and
@@ -58,6 +66,13 @@ export interface UserSummary {
   savedTotal: number;
   remindersCount: number;
   lastActivity: string | null;
+  /** Per-recorded-currency splits — render these with formatSplit. */
+  incomeTotalByCurrency: CurrencySplit;
+  expensesTotalByCurrency: CurrencySplit;
+  netTotalByCurrency: CurrencySplit;
+  incomeThisMonthByCurrency: CurrencySplit;
+  expensesThisMonthByCurrency: CurrencySplit;
+  savedTotalByCurrency: CurrencySplit;
 }
 
 function startOfDay(d: Date): Date {
@@ -89,6 +104,12 @@ function blankSummary(ownerId: string): UserSummary {
     savedTotal: 0,
     remindersCount: 0,
     lastActivity: null,
+    incomeTotalByCurrency: {},
+    expensesTotalByCurrency: {},
+    netTotalByCurrency: {},
+    incomeThisMonthByCurrency: {},
+    expensesThisMonthByCurrency: {},
+    savedTotalByCurrency: {},
   };
 }
 
@@ -126,7 +147,10 @@ export function computeUserSummaries(
   reference = new Date(),
   authKnown: boolean = authUsers.length > 0,
   deletedUsers: DeletedUserRecord[] = [],
+  options: MoneyOptions = {},
 ): UserSummary[] {
+  const display = options.displayCurrency ?? "AED";
+  const currencyFor = options.currencyForCollection ?? (() => "AED");
   const byOwner = new Map<string, UserSummary>();
   const get = (ownerId: string): UserSummary => {
     let s = byOwner.get(ownerId);
@@ -172,13 +196,21 @@ export function computeUserSummaries(
 
   for (const t of data.transactions) {
     const s = get(t.owner_id);
+    // Bucket each row in its true GCC currency — resolved from the collection
+    // when the stored stamp is the legacy AED default (see resolveRowCurrency)
+    // — so a KWD-heavy user never reads as AED-heavy.
     const amount = toNumber(t.amount);
+    const currency = resolveRowCurrency(t.currency, t.collection_id, currencyFor);
     if (t.kind === "income") {
-      s.incomeTotal += amount;
-      if (monthKey(t.occurred_at) === thisMonth) s.incomeThisMonth += amount;
+      splitAdd(s.incomeTotalByCurrency, amount, currency);
+      if (monthKey(t.occurred_at) === thisMonth) {
+        splitAdd(s.incomeThisMonthByCurrency, amount, currency);
+      }
     } else {
-      s.expensesTotal += amount;
-      if (monthKey(t.occurred_at) === thisMonth) s.expensesThisMonth += amount;
+      splitAdd(s.expensesTotalByCurrency, amount, currency);
+      if (monthKey(t.occurred_at) === thisMonth) {
+        splitAdd(s.expensesThisMonthByCurrency, amount, currency);
+      }
     }
     touchLastActivity(s, t.created_at);
   }
@@ -188,7 +220,8 @@ export function computeUserSummaries(
   for (const e of data.envelopes) {
     const s = get(e.owner_id);
     s.envelopesCount += 1;
-    s.savedTotal += toNumber(e.saved_amount);
+    // Envelopes inherit their collection's currency (no currency column).
+    splitAdd(s.savedTotalByCurrency, toNumber(e.saved_amount), currencyFor(e.collection_id));
   }
 
   for (const r of data.recurring) get(r.owner_id).budgetsCount += 0; // no-op keeps type parity
@@ -223,12 +256,15 @@ export function computeUserSummaries(
       // (this is what production shows when the service-role key is missing).
       s.accountStatus = "unknown";
     }
-    s.netTotal = round2(s.incomeTotal - s.expensesTotal);
-    s.incomeThisMonth = round2(s.incomeThisMonth);
-    s.expensesThisMonth = round2(s.expensesThisMonth);
-    s.incomeTotal = round2(s.incomeTotal);
-    s.expensesTotal = round2(s.expensesTotal);
-    s.savedTotal = round2(s.savedTotal);
+    // Scalars come from the per-currency splits so one display mode drives
+    // every figure (native keeps each leg, converted sums them).
+    s.netTotalByCurrency = splitNet(s.incomeTotalByCurrency, s.expensesTotalByCurrency);
+    s.incomeTotal = round2(splitTotal(s.incomeTotalByCurrency, display));
+    s.expensesTotal = round2(splitTotal(s.expensesTotalByCurrency, display));
+    s.netTotal = round2(splitTotal(s.netTotalByCurrency, display));
+    s.incomeThisMonth = round2(splitTotal(s.incomeThisMonthByCurrency, display));
+    s.expensesThisMonth = round2(splitTotal(s.expensesThisMonthByCurrency, display));
+    s.savedTotal = round2(splitTotal(s.savedTotalByCurrency, display));
   }
   return summaries.sort((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""));
 }

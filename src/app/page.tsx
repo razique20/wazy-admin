@@ -15,16 +15,31 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { FolderKanban, FileText, Gauge, TrendingUp, TrendingDown, LifeBuoy, Bot, Users } from "lucide-react";
+import { FolderKanban, FileText, Gauge, Globe2, TrendingUp, TrendingDown, LifeBuoy, Bot, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useWazy } from "@/components/providers/data-provider";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from "@/components/ui/primitives";
-import { computeKpis, computeMonthlyCashFlow, computeExpenseBreakdown, computeRenewalHorizon } from "@/lib/analytics";
+import {
+  computeKpis,
+  computeMonthlyCashFlow,
+  computeExpenseBreakdown,
+  computeRenewalHorizon,
+  type MonthlyCashFlowPoint,
+} from "@/lib/analytics";
 import { computeSupportStats } from "@/lib/support";
 import { quotaMonthKey, totalAiCalls, computeAiAdoption } from "@/lib/ai-quota";
 import { toTier, TIER_LABELS } from "@/lib/tiers";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber, formatSplit } from "@/lib/format";
+import Link from "next/link";
+import { Skeleton } from "@/components/ui/primitives";
+import { cn } from "@/lib/cn";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
+import { collectionCurrencyResolver, computeGccStats } from "@/lib/gcc";
+import { isNative } from "@/lib/currency";
+
+/** Two-decimal rounding for per-currency chart legs. */
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const TOOLTIP_STYLE = {
   backgroundColor: "#0a0a0a",
@@ -49,6 +64,9 @@ const SERIES = {
 
 const DONUT_COLORS = [SERIES.blue, SERIES.cyan, SERIES.emerald, SERIES.amber, SERIES.purple, SERIES.pink, SERIES.gray, "#3f3f46", "#52525b", "#71717a"];
 
+/** Per-currency series colours for the multi-currency cash-flow chart. */
+const SERIES_LIST = [SERIES.blue, SERIES.emerald, SERIES.amber, SERIES.purple, SERIES.pink, SERIES.cyan];
+
 interface AuthUser {
   id: string;
   email: string | null;
@@ -58,6 +76,7 @@ interface AuthUser {
 
 export default function OverviewPage() {
   const { data, loading, error } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [, setActiveUsers] = useState<AuthUser[]>([]);
   const [tiers, setTiers] = useState<Record<string, string>>({});
@@ -96,10 +115,74 @@ export default function OverviewPage() {
     };
   }, []);
 
-  const kpis = useMemo(() => computeKpis(data, new Date()), [data]);
-  const cashFlow = useMemo(() => computeMonthlyCashFlow(data.transactions, 6), [data.transactions]);
-  const breakdown = useMemo(() => computeExpenseBreakdown(data.transactions), [data.transactions]);
+  const moneyOpts = useMemo(
+    () => ({
+      displayCurrency: displayCurrency,
+      currencyForCollection: collectionCurrencyResolver(data.collections),
+    }),
+    [displayCurrency, data.collections],
+  );
+
+  const kpis = useMemo(() => computeKpis(data, new Date(), moneyOpts), [data, moneyOpts]);
+  const cashFlow = useMemo(
+    () => computeMonthlyCashFlow(data.transactions, 6, new Date(), moneyOpts),
+    [data.transactions, moneyOpts],
+  );
+  const breakdown = useMemo(
+    () => computeExpenseBreakdown(data.transactions, new Date(), moneyOpts),
+    [data.transactions, moneyOpts],
+  );
   const horizon = useMemo(() => computeRenewalHorizon(data.documents), [data.documents]);
+  // Per-GCC-market coverage: how many documents and transactions each of the
+  // six states contributes, with money shown in the display currency.
+  const gccStats = useMemo(
+    () => computeGccStats(data, { displayCurrency }),
+    [data, displayCurrency],
+  );
+
+  // In the default (as-recorded) view a month can hold several currencies at
+  // once, so the chart draws one Income/Expenses pair per currency instead of
+  // pretending AED 1,200 and SAR 300 are the same number. With a single
+  // currency — or when the admin picks one — the classic two-series chart is
+  // exact and much easier to read.
+  const chartCurrencies = useMemo(() => {
+    const codes = new Set<string>();
+    for (const p of cashFlow) {
+      for (const code of [...Object.keys(p.incomeByCurrency), ...Object.keys(p.expensesByCurrency)]) codes.add(code);
+    }
+    return [...codes].sort();
+  }, [cashFlow]);
+
+  const multiCurrencyChart = isNative(displayCurrency) && chartCurrencies.length > 1;
+
+  const cashFlowData = useMemo(() => {
+    if (!multiCurrencyChart) return cashFlow;
+    return cashFlow.map((p) => {
+      const row: Record<string, string | number> = { label: p.label };
+      for (const code of chartCurrencies) {
+        row[`Income ${code}`] = round2(p.incomeByCurrency[code] ?? 0);
+        row[`Expenses ${code}`] = round2(p.expensesByCurrency[code] ?? 0);
+      }
+      return row;
+    });
+  }, [cashFlow, multiCurrencyChart, chartCurrencies]);
+
+  // Same idea for the donut: with several currencies in play, break the month
+  // down by currency so each slice is a real, unconvertible amount.
+  const breakdownData = useMemo(() => {
+    if (!multiCurrencyChart) return breakdown.map((b) => ({ key: b.category, label: b.label, value: b.amount }));
+    const byCurrency = new Map<string, number>();
+    for (const b of breakdown) {
+      for (const [code, amount] of Object.entries(b.byCurrency)) {
+        byCurrency.set(code, (byCurrency.get(code) ?? 0) + amount);
+      }
+    }
+    return [...byCurrency.entries()]
+      .map(([code, value]) => ({ key: code, label: code, value: round2(value) }))
+      .sort((a, b) => b.value - a.value);
+  }, [breakdown, multiCurrencyChart]);
+
+  const currencyLabel = isNative(displayCurrency) ? "as recorded" : displayCurrency;
 
   // Platform widgets (doc §12)
   const supportStats = useMemo(() => computeSupportStats(data.supportRequests), [data.supportRequests]);
@@ -203,9 +286,9 @@ export default function OverviewPage() {
           loading={loading}
         />
         <KpiCard
-          title="Net Cash Flow (MTD)"
-          value={formatCurrency(kpis.netCashFlow)}
-          subvalue={`${formatCurrency(kpis.monthlyIncome)} in · ${formatCurrency(kpis.monthlyExpenses)} out`}
+          title={isNative(displayCurrency) ? "Net Cash Flow (MTD)" : `Net Cash Flow (MTD) · ${displayCurrency}`}
+          value={formatSplit(kpis.netCashFlowByCurrency, displayCurrency)}
+          subvalue={`${formatSplit(kpis.monthlyIncomeByCurrency, displayCurrency)} in · ${formatSplit(kpis.monthlyExpensesByCurrency, displayCurrency)} out`}
           icon={kpis.netCashFlow >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
           accent={kpis.netCashFlow >= 0 ? "emerald" : "red"}
           loading={loading}
@@ -220,17 +303,88 @@ export default function OverviewPage() {
         />
       </div>
 
+      {/* GCC market coverage — documents & transactions per Gulf state */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 text-emerald-400" />
+                GCC Market Coverage
+              </CardTitle>
+              <CardDescription>
+                Documents &amp; transactions per Gulf state · money {isNative(displayCurrency) ? "as recorded" : `in ${displayCurrency}`}
+              </CardDescription>
+            </div>
+            <Link
+              href="/gcc"
+              className="text-xs font-medium text-blue-400 hover:text-blue-300"
+            >
+              Full GCC overview →
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+              {gccStats.countries.map((c) => {
+                const active = c.collections > 0 || c.documents > 0 || c.transactions > 0;
+                return (
+                  <Link
+                    key={c.code}
+                    href="/gcc"
+                    className={cn(
+                      "rounded-xl border border-zinc-800 bg-black/40 p-3 transition-colors hover:border-zinc-700",
+                      !active && "opacity-50",
+                    )}
+                  >
+                    <p className="flex items-center justify-between text-sm font-medium text-zinc-100">
+                      <span className="flex items-center gap-1.5">
+                        <span aria-hidden>{c.flag}</span>
+                        {c.code}
+                      </span>
+                      <Badge variant={!isNative(displayCurrency) && c.currency === displayCurrency ? "info" : "neutral"}>
+                        {c.currency}
+                      </Badge>
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-white">{formatNumber(c.documents)}</p>
+                    <p className="text-[11px] text-zinc-500">documents</p>
+                    <p className="mt-1.5 text-lg font-semibold text-emerald-400">{formatNumber(c.transactions)}</p>
+                    <p className="text-[11px] text-zinc-500">transactions</p>
+                    {c.expenses !== 0 || c.income !== 0 ? (
+                      <p className="mt-1.5 break-words text-[11px] leading-relaxed text-zinc-400">
+                        net {formatSplit(c.netByCurrency, displayCurrency)}
+                      </p>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Monthly Cash Flow Trend</CardTitle>
-            <CardDescription>Income vs expenses, last 6 months (AED)</CardDescription>
+            <CardDescription>
+              {multiCurrencyChart
+                ? `Income vs expenses, last 6 months — one series per currency (${chartCurrencies.join(", ")})`
+                : `Income vs expenses, last 6 months (${isNative(displayCurrency) ? chartCurrencies[0] ?? "AED" : displayCurrency})`}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cashFlow} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={cashFlowData as MonthlyCashFlowPoint[]} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={SERIES.blue} stopOpacity={0.35} />
@@ -249,10 +403,52 @@ export default function OverviewPage() {
                     tickLine={false}
                     tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
                   />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => formatCurrency(Number(v))} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v, name) => {
+                      // In the multi-currency view each series already carries
+                      // its own currency in its name — don't re-convert it.
+                      const code =
+                        multiCurrencyChart && typeof name === "string"
+                          ? (name.split(" ").pop() ?? displayCurrency)
+                          : displayCurrency;
+                      return formatCurrency(Number(v), isNative(code) ? "AED" : code);
+                    }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 12, color: "#a1a1aa" }} />
-                  <Area type="monotone" dataKey="income" name="Income" stroke={SERIES.blue} fill="url(#incomeGrad)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="expenses" name="Expenses" stroke={SERIES.gray} fill="url(#expenseGrad)" strokeWidth={2} />
+                  {multiCurrencyChart ? (
+                    // One Income/Expenses pair per currency — every amount is
+                    // shown in the exact currency it was recorded in.
+                    chartCurrencies.flatMap((code, i) => {
+                      const color = SERIES_LIST[i % SERIES_LIST.length];
+                      return [
+                        <Area
+                          key={`in-${code}`}
+                          type="monotone"
+                          dataKey={`Income ${code}`}
+                          name={`Income ${code}`}
+                          stroke={color}
+                          fill="transparent"
+                          strokeWidth={2}
+                          strokeDasharray="4 2"
+                        />,
+                        <Area
+                          key={`out-${code}`}
+                          type="monotone"
+                          dataKey={`Expenses ${code}`}
+                          name={`Expenses ${code}`}
+                          stroke={color}
+                          fill="transparent"
+                          strokeWidth={2}
+                        />,
+                      ];
+                    })
+                  ) : (
+                    <>
+                      <Area type="monotone" dataKey="income" name="Income" stroke={SERIES.blue} fill="url(#incomeGrad)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="expenses" name="Expenses" stroke={SERIES.gray} fill="url(#expenseGrad)" strokeWidth={2} />
+                    </>
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -262,29 +458,51 @@ export default function OverviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Expense Breakdown</CardTitle>
-            <CardDescription>Current month spending by category</CardDescription>
+            <CardDescription>
+              {multiCurrencyChart
+                ? `Current month spending by currency (as recorded · ${currencyLabel})`
+                : `Current month spending by category (${isNative(displayCurrency) ? chartCurrencies[0] ?? "AED" : displayCurrency})`}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {breakdown.length === 0 ? (
+            {breakdownData.length === 0 ? (
               <div className="flex h-72 items-center justify-center text-sm text-zinc-600">No expenses this month</div>
             ) : (
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={breakdown}
-                      dataKey="amount"
+                      data={breakdownData}
+                      dataKey="value"
                       nameKey="label"
                       innerRadius="58%"
                       outerRadius="85%"
                       paddingAngle={3}
                       strokeWidth={0}
                     >
-                      {breakdown.map((_, i) => (
+                      {breakdownData.map((_, i) => (
                         <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => formatCurrency(Number(v))} />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      formatter={(v, name) =>
+                        // Each slice is already in its own currency in the
+                        // multi-currency view; otherwise convert to display.
+                        // Native mode has no single code — fall back to the
+                        // chart's one currency (or AED) instead of the
+                        // literal string "native", which Intl can't format.
+                        (() => {
+                          const code =
+                            multiCurrencyChart && typeof name === "string"
+                              ? name
+                              : isNative(displayCurrency)
+                                ? chartCurrencies[0] ?? "AED"
+                                : displayCurrency;
+                          return formatCurrency(Number(v), code);
+                        })()
+                      }
+                    />
                     <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
                   </PieChart>
                 </ResponsiveContainer>

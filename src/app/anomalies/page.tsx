@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RefreshCw, Radar } from "lucide-react";
 import { useWazy } from "@/components/providers/data-provider";
+import { useDisplayCurrency } from "@/components/providers/currency-provider";
 import {
   Badge,
   Button,
@@ -14,6 +15,7 @@ import {
   EmptyState,
 } from "@/components/ui/primitives";
 import { detectAnomalies } from "@/lib/anomaly";
+import { collectionCurrencyResolver } from "@/lib/gcc";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { Severity } from "@/lib/anomaly";
@@ -26,12 +28,20 @@ const SEVERITY_META: Record<Severity, { label: string; badge: "warning" | "info"
 
 export default function AnomaliesPage() {
   const { data, loading, refresh } = useWazy();
+  const { currency: displayCurrency } = useDisplayCurrency();
   const [threshold, setThreshold] = useState(35);
   const [resolved, setResolved] = useState<Set<string>>(new Set());
 
   const anomalies = useMemo(
-    () => detectAnomalies(data.transactions, { threshold: threshold / 100 }),
-    [data.transactions, threshold],
+    () =>
+      detectAnomalies(data.transactions, {
+        threshold: threshold / 100,
+        displayCurrency,
+        // Spikes are grouped per true currency — a Kuwaiti collection's
+        // legacy 'AED'-stamped rows count as KWD, not AED.
+        currencyForCollection: collectionCurrencyResolver(data.collections),
+      }),
+    [data.transactions, data.collections, threshold, displayCurrency],
   );
   const open = anomalies.filter((a) => !resolved.has(a.id));
   const counts = {
@@ -51,7 +61,8 @@ export default function AnomaliesPage() {
             <div>
               <CardTitle>Anomaly & Bill Spike Detection</CardTitle>
               <CardDescription>
-                Flags expenses exceeding their category’s 3-month moving average by more than {threshold}%
+                Flags expenses exceeding their category’s 3-month moving average by more than {threshold}% · all
+                GCC currencies converted to {displayCurrency}
               </CardDescription>
             </div>
             <div className="flex items-center gap-3">
@@ -127,8 +138,10 @@ export default function AnomaliesPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-zinc-100">{formatCurrency(a.amount)}</p>
-                    <p className="text-[11px] text-zinc-500">avg {formatCurrency(a.movingAverage)}</p>
+                    <p className="text-sm font-semibold text-zinc-100">{formatCurrency(a.amount, a.currency)}</p>
+                    <p className="text-[11px] text-zinc-500">
+                      avg {formatCurrency(a.movingAverage, a.currency)}
+                    </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => resolve(a.id)}>
                     <CheckCircle2 className="h-3.5 w-3.5" />

@@ -200,4 +200,68 @@ describe("computeFinancePlatformTotals", () => {
     expect(totals.transactionsTotal).toBe(0);
     expect(totals.netThisMonth).toBe(0);
   });
+
+  it("converts non-AED transactions before totalling MTD money", () => {
+    const totals = computeFinancePlatformTotals(
+      {
+        transactions: [
+          // 375 SAR expense = 367.25 AED at the peg.
+          tx({ owner_id: "u1", kind: "expense", amount: 375, currency: "SAR", occurred_at: "2026-09-03" }),
+          tx({ owner_id: "u2", kind: "income", amount: 1, currency: "BHD", occurred_at: "2026-09-04" }),
+        ],
+        budgets: [],
+        envelopes: [],
+        recurring: [],
+      },
+      REF,
+    );
+    expect(totals.expensesThisMonth).toBeCloseTo(367.25, 2);
+    // Totals round to 2 decimals: 1 BHD = 9.7673 AED → 9.77.
+    expect(totals.incomeThisMonth).toBe(9.77);
+    expect(totals.netThisMonth).toBe(-357.48);
+    expect(totals.currency).toBe("AED");
+  });
+
+  it("reports totals in the requested display currency", () => {
+    const totals = computeFinancePlatformTotals(
+      {
+        transactions: [
+          tx({ owner_id: "u1", kind: "expense", amount: 375, currency: "SAR", occurred_at: "2026-09-03" }),
+        ],
+        budgets: [],
+        envelopes: [],
+        recurring: [],
+      },
+      REF,
+      { displayCurrency: "SAR" },
+    );
+    // 375 SAR stays 375 SAR when SAR is the display currency.
+    expect(totals.expensesThisMonth).toBe(375);
+    expect(totals.currency).toBe("SAR");
+  });
+});
+
+describe("multi-currency user rows", () => {
+  it("converts each row's currency and resolves envelope currency from the collection", () => {
+    const rows = computeFinanceUserRows(
+      {
+        transactions: [
+          tx({ owner_id: "u1", kind: "expense", amount: 375, currency: "SAR", occurred_at: "2026-09-03" }),
+          tx({ owner_id: "u1", kind: "income", amount: 100, currency: "AED", occurred_at: "2026-09-04" }),
+        ],
+        budgets: [],
+        // Envelope lives in a SAR collection → 250 SAR = 244.83 AED.
+        envelopes: [envelope({ owner_id: "u1", collection_id: "c-sa", saved_amount: 250 })],
+        recurring: [],
+      },
+      REF,
+      {
+        displayCurrency: "AED",
+        currencyForCollection: (id) => (id === "c-sa" ? "SAR" : "AED"),
+      },
+    );
+    expect(rows[0].expensesTotal).toBeCloseTo(367.25, 2);
+    expect(rows[0].incomeTotal).toBe(100);
+    expect(rows[0].savedTotal).toBeCloseTo(244.83, 2);
+  });
 });

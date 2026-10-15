@@ -91,10 +91,13 @@ describe("totalAiCalls", () => {
 });
 
 describe("tier limits and labels", () => {
-  it("matches the documented per-tier monthly quotas", () => {
+  // Must match the Flutter app's TierLimits (lib/models/subscription_tier.dart:
+  // groqAiSummaryMonthlyQuota / aiBudgetPlanMonthlyQuota) — the app is the
+  // source of truth for what each plan actually enforces.
+  it("matches the Flutter app's per-tier monthly quotas", () => {
     expect(AI_QUOTA_LIMITS.free).toEqual({ groq_ai_summary: 3, groq_ai_budget_plan: 2 });
-    expect(AI_QUOTA_LIMITS.plus).toEqual({ groq_ai_summary: 30, groq_ai_budget_plan: 20 });
-    expect(AI_QUOTA_LIMITS.business).toEqual({ groq_ai_summary: 100, groq_ai_budget_plan: 60 });
+    expect(AI_QUOTA_LIMITS.plus).toEqual({ groq_ai_summary: 15, groq_ai_budget_plan: 10 });
+    expect(AI_QUOTA_LIMITS.business).toEqual({ groq_ai_summary: 40, groq_ai_budget_plan: 25 });
   });
 
   it("labels known features and passes through unknown ones", () => {

@@ -19,6 +19,21 @@ const ACCENTS = {
   red: { icon: "bg-red-500/10 text-red-400", value: "text-red-400" },
 };
 
+/**
+ * Value type scales with length: multi-currency splits render as
+ * `AED 53,528,671 · KWD 800 · SAR 300` (much longer than the old single-code
+ * figures), so a fixed text-2xl either overflowed the card or got clipped by
+ * an ellipsis. Shrinking one step keeps the whole amount on the card; pair it
+ * with `break-words` so nothing is ever hidden.
+ */
+export function statValueSizeClass(value: string): string {
+  const len = value.length;
+  if (len <= 12) return "text-2xl";
+  if (len <= 20) return "text-xl";
+  if (len <= 32) return "text-lg";
+  return "text-base";
+}
+
 export function KpiCard({ title, value, subvalue, icon, accent = "white", loading }: KpiCardProps) {
   const a = ACCENTS[accent];
   return (
@@ -29,13 +44,21 @@ export function KpiCard({ title, value, subvalue, icon, accent = "white", loadin
           {loading ? (
             <Skeleton className="mt-2 h-8 w-28" />
           ) : (
-            <p className={cn("mt-1.5 truncate text-2xl font-semibold tracking-tight", a.value)}>{value}</p>
+            <p
+              className={cn(
+                "mt-1.5 break-words font-semibold leading-tight tracking-tight",
+                statValueSizeClass(value),
+                a.value,
+              )}
+            >
+              {value}
+            </p>
           )}
           {subvalue ? (
             loading ? (
               <Skeleton className="mt-2 h-3 w-20" />
             ) : (
-              <p className="mt-1 truncate text-xs text-zinc-500">{subvalue}</p>
+              <p className="mt-1 break-words text-xs leading-relaxed text-zinc-500">{subvalue}</p>
             )
           ) : null}
         </div>

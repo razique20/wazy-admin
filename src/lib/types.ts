@@ -20,6 +20,13 @@ export interface Collection {
   id: string;
   owner_id: string;
   name: string;
+  /**
+   * GCC country ISO 2-letter code (AE, SA, KW, QA, BH, OM) — the collection's
+   * market and the source of its currency. Added by `supabase/gcc_migration.sql`
+   * (and present in `supabase/schema.sql`); optional because older rows or
+   * deployments that have not run the migration may omit it.
+   */
+  country_code?: string | null;
   is_personal: boolean;
   created_at: string;
 }

@@ -175,6 +175,88 @@ describe("computeKpis", () => {
   });
 });
 
+describe("GCC multi-currency aggregation", () => {
+  it("converts each transaction's own currency into AED before totalling", () => {
+    const kpis = computeKpis(
+      {
+        collections: [{ is_personal: true }],
+        documents: [],
+        transactions: [
+          tx({ kind: "income", amount: 1000, currency: "AED", occurred_at: "2026-09-05", category: "sales" }),
+          // 375 SAR = 367.25 AED at the 3.6725/3.75 peg.
+          tx({ kind: "expense", amount: 375, currency: "SAR", occurred_at: "2026-09-06" }),
+        ],
+        budgets: [{ category: "rent", monthly_limit: 1000 }],
+      },
+      REF,
+    );
+    expect(kpis.monthlyIncome).toBe(1000);
+    expect(kpis.monthlyExpenses).toBeCloseTo(367.25, 2);
+    expect(kpis.netCashFlow).toBeCloseTo(632.75, 2);
+    expect(kpis.currency).toBe("AED");
+  });
+
+  it("re-totals into a different display currency", () => {
+    const txs = [
+      tx({ kind: "expense", amount: 100, currency: "AED", occurred_at: "2026-09-06" }),
+    ];
+    const aed = computeKpis({ collections: [], documents: [], transactions: txs, budgets: [] }, REF);
+    const sar = computeKpis(
+      { collections: [], documents: [], transactions: txs, budgets: [] },
+      REF,
+      { displayCurrency: "SAR" },
+    );
+    expect(aed.monthlyExpenses).toBe(100);
+    // 100 AED → SAR at the 3.6725/3.75 peg = 102.11 SAR.
+    expect(sar.monthlyExpenses).toBeCloseTo(102.11, 2);
+    expect(sar.currency).toBe("SAR");
+  });
+
+  it("converts budget limits through their collection's currency", () => {
+    const statuses = computeBudgetStatuses(
+      [{ category: "rent", monthly_limit: 1000, collection_id: "c-sa" }],
+      [tx({ category: "rent", amount: 375, currency: "SAR", occurred_at: "2026-09-06" })],
+      REF,
+      { currencyForCollection: (id) => (id === "c-sa" ? "SAR" : "AED") },
+    );
+    // 1000 SAR limit = 979.33 AED; 375 SAR spent = 367.25 AED → ~37.5%.
+    expect(statuses[0].limit).toBeCloseTo(979.33, 2);
+    expect(statuses[0].spent).toBeCloseTo(367.25, 2);
+    expect(statuses[0].utilization).toBeCloseTo(0.375, 3);
+    expect(statuses[0].state).toBe("ok");
+  });
+
+  it("mixes all six GCC currencies in one cash-flow chart without distorting it", () => {
+    const points = computeMonthlyCashFlow(
+      [
+        tx({ kind: "income", amount: 1, currency: "AED", occurred_at: "2026-09-02", category: "sales" }),
+        tx({ kind: "income", amount: 1, currency: "SAR", occurred_at: "2026-09-03", category: "sales" }),
+        tx({ kind: "income", amount: 1, currency: "KWD", occurred_at: "2026-09-04", category: "sales" }),
+        tx({ kind: "income", amount: 1, currency: "QAR", occurred_at: "2026-09-05", category: "sales" }),
+        tx({ kind: "income", amount: 1, currency: "BHD", occurred_at: "2026-09-06", category: "sales" }),
+        tx({ kind: "income", amount: 1, currency: "OMR", occurred_at: "2026-09-07", category: "sales" }),
+      ],
+      6,
+      REF,
+    );
+    const sept = points.find((p) => p.key === "2026-09")!;
+    // Sum of one unit of each GCC currency in AED: 1 + 0.9793 + 11.95 + 1.0089 + 9.7673 + 9.5514.
+    expect(sept.income).toBeCloseTo(34.257, 2);
+  });
+
+  it("breaks down a mixed-currency expense month into AED categories", () => {
+    const points = computeExpenseBreakdown(
+      [
+        tx({ category: "rent", amount: 500, currency: "AED", occurred_at: "2026-09-01" }),
+        tx({ category: "rent", amount: 510.64, currency: "SAR", occurred_at: "2026-09-02" }), // = 500 AED
+      ],
+      REF,
+    );
+    const rent = points.find((p) => p.category === "rent")!;
+    expect(rent.amount).toBeCloseTo(1000, 0);
+  });
+});
+
 describe("misc", () => {
   it("colorForIndex cycles the palette", () => {
     expect(colorForIndex(0)).toBe(colorForIndex(10));

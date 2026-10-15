@@ -42,6 +42,7 @@ interface ApiResponse {
 interface ResetTarget {
   userId: string;
   email: string | null;
+  feature: string | null;
 }
 
 export default function AiDashboardPage() {
@@ -134,7 +135,7 @@ export default function AiDashboardPage() {
       const res = await fetch("/api/ai-quota/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: resetTarget.userId, usageMonth: month }),
+        body: JSON.stringify({ userId: resetTarget.userId, usageMonth: month, featureName: resetTarget.feature }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) {
@@ -564,7 +565,7 @@ export default function AiDashboardPage() {
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => setResetTarget({ userId: user.userId, email: user.email ?? user.userId.slice(0, 8) + "..." })}
+                                onClick={() => setResetTarget({ userId: user.userId, email: user.email ?? user.userId.slice(0, 8) + "...", feature: user.feature })}
                               >
                                 <RotateCcw className="h-3.5 w-3.5" /> Reset
                               </Button>

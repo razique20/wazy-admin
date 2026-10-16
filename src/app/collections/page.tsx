@@ -198,12 +198,7 @@ export default function CollectionsPage() {
               value={filters.from}
               onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
               title="Expiry from"
-            />
-            <Input
-              type="date"
-              value={filters.to}
-              onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
-              title="Expiry to"
+              className="h-8"
             />
           </div>
         </div>

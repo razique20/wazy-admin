@@ -1,15 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useDisplayCurrency } from "@/components/providers/currency-provider";
-import {
-  Bot,
-  TrendingUp,
-  AlertTriangle,
-  Users,
-  Copyright,
-  RotateCcw,
-} from "lucide-react";
+import { Bot, AlertTriangle, Users, Copyright, RotateCcw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -21,16 +13,8 @@ import {
 import { Button } from "@/components/ui/primitives";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatNumber } from "@/lib/format";
-import {
-  quotaMonthKey,
-  quotaMonthLabel,
-  aiFeatureLabel,
-  AI_FEATURES,
-  AI_QUOTA_LIMITS,
-  computeUserQuotaStatus,
-  totalAiCalls,
-} from "@/lib/ai-quota";
-import type { AiAdoptionMetrics, AiUserUsage } from "@/lib/ai-quota";
+import { quotaMonthKey, quotaMonthLabel, aiFeatureLabel, AI_FEATURES } from "@/lib/ai-quota";
+import type { AiAdoptionMetrics } from "@/lib/ai-quota";
 
 interface ApiResponse {
   ok: boolean;
@@ -50,11 +34,11 @@ export default function AiDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AiAdoptionMetrics | null>(null);
   const [month, setMonth] = useState<string>(() => quotaMonthKey());
-  const [tiers, setTiers] = useState<Record<string, string>>({});
+  const [, setTiers] = useState<Record<string, string>>({});
   const [resetTarget, setResetTarget] = useState<ResetTarget | null>(null);
   const [resetAllOpen, setResetAllOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const loadData = async (selectedMonth: string = "") => {
     setLoading(true);
@@ -110,22 +94,8 @@ export default function AiDashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const loadMeta = async () => {
-    try {
-      const [usersRes, tiersRes] = await Promise.all([
-        fetch("/api/admin-users", { cache: "no-store" }),
-        fetch("/api/user-tiers", { cache: "no-store" }),
-      ]);
-      const usersJson = await usersRes.json().catch(() => ({}));
-      const tiersJson = await tiersRes.json().catch(() => ({}));
-      // tiers already loaded above
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    void loadMeta();
+    useEffect(() => {
+    // data already loaded above; nothing else needed
   }, []);
 
   const resetUser = async () => {
@@ -271,7 +241,7 @@ export default function AiDashboardPage() {
             <Card>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <TrendingUp className="h-4 w-4" />
+                  <Users className="h-4 w-4" />
                   <span className="text-[11px] font-medium uppercase tracking-wider">AI Calls This Month</span>
                 </div>
                 <p className="text-2xl font-semibold text-blue-400">

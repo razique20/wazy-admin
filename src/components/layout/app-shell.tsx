@@ -16,7 +16,6 @@ import {
   Menu,
   X,
   RefreshCw,
-  TrendingUp,
   Globe2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";

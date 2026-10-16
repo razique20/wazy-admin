@@ -146,61 +146,12 @@ export default function CollectionsPage() {
               onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
             />
           </div>
-          <Select value={filters.collection} onValueChange={(v) => setFilters((f) => ({ ...f, collection: v }))}>
+          <Select value={filters.collectionSearchQuery} onValueChange={(v) => setFilters((f) => ({ ...f, collectionSearchQuery: v }))}>
             <SelectTrigger>
-              <SelectValue placeholder="Collection" />
+              <SelectValue placeholder="Filter by email or user ID" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All collections</SelectItem>
-              {data.collections.map((c) => {
-                const isPersonal = c.is_personal;
-                const label = isPersonal
-                  ? `${c.name} ${isPersonal ? "(Personal — " + c.owner_id.slice(0, 6) + "...)" : ""}`
-                  : c.name;
-                return (
-                  <SelectItem key={c.id} value={c.id}>
-                    {label}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          {/* Search by email or user ID */}
-          <Select value={filters.collectionSearch} onValueChange={(v) => setFilters((f) => ({ ...f, collectionSearch: v }))} aria-label="Search collections by email or user ID">
-            <SelectTrigger>
-              <SelectValue placeholder="Search" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Show all</SelectItem>
-              <SelectItem value="personal">Personal collections</SelectItem>
-              <SelectItem value="public">Public collections</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder="Filter by email or user ID"
-            value={filters.collectionSearchQuery || ""}
-            onChange={(e) => setFilters((f) => ({ ...f, collectionSearchQuery: e.target.value }))}
-            className="h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 focus:outline-none w-64"
-            style={{ width: 200 }}
-          />
-          <Select value={filters.collection} onValueChange={(v) => setFilters((f) => ({ ...f, collection: v }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Collection" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All collections</SelectItem>
-              {data.collections.map((c) => {
-                const isPersonal = c.is_personal;
-                const label = isPersonal
-                  ? `${c.name} ${isPersonal ? "(Personal — " + c.owner_id.slice(0, 6) + "...)" : ""}`
-                  : c.name;
-                return (
-                  <SelectItem key={c.id} value={c.id}>
-                    {label}
-                  </SelectItem>
-                );
-              })}
+              <SelectItem value="">Filter by email or user ID</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filters.status} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>

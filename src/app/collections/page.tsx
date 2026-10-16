@@ -81,10 +81,16 @@ export default function CollectionsPage() {
     const collectionSearch = filters.collectionSearch || "";
     const collectionSearchQuery = filters.collectionSearchQuery?.trim().toLowerCase() || "";
     const filtered = data.documents.filter((d) => {
-      if (q && !`${d.display_name} ${d.doc_type} ${d.assigned_to ?? ""} ${d.notes ?? ""}`.toLowerCase().includes(q)) return false;
+      // If searching by owner_id/user ID, only filter by owner_id and skip other filters
+      if (collectionSearchQuery) {
+        if (!d.owner_id.toLowerCase().includes(collectionSearchQuery)) return false;
+        // Skip other filters when searching by owner_id
+        return true;
+      }
+      // Original filter logic when no search query
+      if (q && !`${d.display_name} ${d.doc_type} ${d.assigned_to ?? ""} ${d.notes ?? ""} ${d.owner_id}`.toLowerCase().includes(q)) return false;
       if (collectionSearch === "public" && !d.collection_id) return false;
       if (collectionSearch === "personal" && d.collection_id) return false;
-      if (collectionSearchQuery && !d.owner_id.toLowerCase().includes(collectionSearchQuery)) return false;
       if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
       if (filters.status !== "all" && d.status !== filters.status) return false;
       if (filters.docType !== "all" && d.doc_type !== filters.docType) return false;
@@ -148,7 +154,7 @@ export default function CollectionsPage() {
           </div>
           <Select value={filters.collectionSearchQuery} onValueChange={(v) => setFilters((f) => ({ ...f, collectionSearchQuery: v }))}>
             <SelectTrigger>
-              <SelectValue placeholder="Filter by email or user ID" />
+              <SelectValue placeholder="Filter by user ID" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Filter by email or user ID</SelectItem>

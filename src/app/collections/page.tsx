@@ -82,11 +82,8 @@ export default function CollectionsPage() {
     const collectionSearchQuery = filters.collectionSearchQuery?.trim().toLowerCase() || "";
     const filtered = data.documents.filter((d) => {
       if (q && !`${d.display_name} ${d.doc_type} ${d.assigned_to ?? ""} ${d.notes ?? ""}`.toLowerCase().includes(q)) return false;
-      if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
-      // Filter by personal/public
-      if (collectionSearch === "personal" && !d.collection_id) return false;
-      if (collectionSearch === "public" && d.collection_id) return false;
-      // Filter by owner user ID or email
+      if (collectionSearch === "public" && !d.collection_id) return false;
+      if (collectionSearch === "personal" && d.collection_id) return false;
       if (collectionSearchQuery && d.owner_id && d.owner_id.toLowerCase().indexOf(collectionSearchQuery) === -1) return false;
       if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
       if (filters.status !== "all" && d.status !== filters.status) return false;

@@ -43,9 +43,11 @@ interface Filters {
   country: string;
   from: string;
   to: string;
+  collectionSearch: string;
+  collectionSearchQuery: string;
 }
 
-const INITIAL_FILTERS: Filters = { query: "", collection: "all", status: "all", docType: "all", country: "all", from: "", to: "" };
+const INITIAL_FILTERS: Filters = { query: "", collection: "all", status: "all", docType: "all", country: "all", from: "", to: "", collectionSearch: "", collectionSearchQuery: "" };
 
 export default function CollectionsPage() {
   const { data, loading, error } = useWazy();
@@ -76,8 +78,16 @@ export default function CollectionsPage() {
 
   const rows = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
+    const collectionSearch = filters.collectionSearch || "";
+    const collectionSearchQuery = filters.collectionSearchQuery?.trim().toLowerCase() || "";
     const filtered = data.documents.filter((d) => {
       if (q && !`${d.display_name} ${d.doc_type} ${d.assigned_to ?? ""} ${d.notes ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
+      // Filter by personal/public
+      if (collectionSearch === "personal" && !d.collection_id) return false;
+      if (collectionSearch === "public" && d.collection_id) return false;
+      // Filter by owner user ID or email
+      if (collectionSearchQuery && d.owner_id && d.owner_id.toLowerCase().indexOf(collectionSearchQuery) === -1) return false;
       if (filters.collection !== "all" && d.collection_id !== filters.collection) return false;
       if (filters.status !== "all" && d.status !== filters.status) return false;
       if (filters.docType !== "all" && d.doc_type !== filters.docType) return false;
@@ -145,11 +155,55 @@ export default function CollectionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All collections</SelectItem>
-              {data.collections.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
+              {data.collections.map((c) => {
+                const isPersonal = c.is_personal;
+                const label = isPersonal
+                  ? `${c.name} ${isPersonal ? "(Personal — " + c.owner_id.slice(0, 6) + "...)" : ""}`
+                  : c.name;
+                return (
+                  <SelectItem key={c.id} value={c.id}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          {/* Search by email or user ID */}
+          <Select value={filters.collectionSearch} onValueChange={(v) => setFilters((f) => ({ ...f, collectionSearch: v }))} aria-label="Search collections by email or user ID">
+            <SelectTrigger>
+              <SelectValue placeholder="Search" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Show all</SelectItem>
+              <SelectItem value="personal">Personal collections</SelectItem>
+              <SelectItem value="public">Public collections</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Filter by email or user ID"
+            value={filters.collectionSearchQuery || ""}
+            onChange={(e) => setFilters((f) => ({ ...f, collectionSearchQuery: e.target.value }))}
+            className="h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 focus:outline-none w-64"
+            style={{ width: 200 }}
+          />
+          <Select value={filters.collection} onValueChange={(v) => setFilters((f) => ({ ...f, collection: v }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Collection" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All collections</SelectItem>
+              {data.collections.map((c) => {
+                const isPersonal = c.is_personal;
+                const label = isPersonal
+                  ? `${c.name} ${isPersonal ? "(Personal — " + c.owner_id.slice(0, 6) + "...)" : ""}`
+                  : c.name;
+                return (
+                  <SelectItem key={c.id} value={c.id}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <Select value={filters.status} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>

@@ -57,13 +57,13 @@ export function KpiCard({ title, value, subvalue, icon, accent = "white", loadin
   const cardContent = (
     <div
       className={cn(
-        "rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.36)] transition-all",
+        "h-full flex flex-col justify-between rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.36)] transition-all",
         href && "hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md cursor-pointer",
         className,
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-400">{title}</p>
           {loading ? (
             <Skeleton className="mt-2 h-8 w-28" />
@@ -95,7 +95,7 @@ export function KpiCard({ title, value, subvalue, icon, accent = "white", loadin
 
   if (href) {
     return (
-      <Link href={href} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] rounded-xl">
+      <Link href={href} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] rounded-xl">
         {cardContent}
       </Link>
     );

@@ -293,15 +293,26 @@ export default function OverviewPage() {
           href="/collections"
           loading={loading}
         />
-        <KpiCard
-          title={isNative(displayCurrency) ? "Net Cash Flow (MTD)" : `Net Cash Flow (MTD) · ${displayCurrency}`}
-          value={formatSplit(kpis.netCashFlowByCurrency, displayCurrency)}
-          subvalue={`${formatSplit(kpis.monthlyIncomeByCurrency, displayCurrency)} in · ${formatSplit(kpis.monthlyExpensesByCurrency, displayCurrency)} out`}
-          icon={kpis.netCashFlow >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          accent={kpis.netCashFlow >= 0 ? "emerald" : "red"}
-          href="/finance"
-          loading={loading}
-        />
+        {(() => {
+          const isMulti = isNative(displayCurrency) && Object.keys(kpis.netCashFlowByCurrency).length > 1;
+          const displayVal = isMulti
+            ? formatCurrency(kpis.netCashFlow, "AED")
+            : formatSplit(kpis.netCashFlowByCurrency, displayCurrency);
+          const displaySub = isMulti
+            ? "Total in AED · View GCC split →"
+            : `${formatSplit(kpis.monthlyIncomeByCurrency, displayCurrency)} in · ${formatSplit(kpis.monthlyExpensesByCurrency, displayCurrency)} out`;
+          return (
+            <KpiCard
+              title="Net Cash Flow (MTD)"
+              value={displayVal}
+              subvalue={displaySub}
+              icon={kpis.netCashFlow >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              accent={kpis.netCashFlow >= 0 ? "emerald" : "red"}
+              href={isMulti ? "/gcc" : "/finance"}
+              loading={loading}
+            />
+          );
+        })()}
         <KpiCard
           title="Budget Utilization"
           value={`${Math.round(kpis.budgetUtilization * 100)}%`}

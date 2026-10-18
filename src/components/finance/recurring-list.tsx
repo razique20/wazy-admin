@@ -79,21 +79,21 @@ export function RecurringList({ ownerId }: { ownerId?: string } = {}) {
           return (
             <div
               key={r.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-black/40 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-black/40 px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-medium text-zinc-100">
+                <p className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-zinc-100">
                   {r.title}
                   <Badge variant={r.is_active ? "success" : "neutral"}>{r.is_active ? "Active" : "Paused"}</Badge>
                 </p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">
+                <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                   {titleize(r.kind)} · {titleize(r.category)} · {titleize(r.frequency)} on day {r.day_of_month} · next{" "}
                   {next ? formatDate(next) : "—"}
                   {r.last_logged_at ? ` · last logged ${formatDate(r.last_logged_at)}` : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={r.kind === "income" ? "text-sm font-semibold text-emerald-400" : "text-sm font-semibold text-red-400"}>
+                <span className={r.kind === "income" ? "text-sm font-semibold text-emerald-600 dark:text-emerald-400" : "text-sm font-semibold text-red-600 dark:text-red-400"}>
                   {r.kind === "income" ? "+" : "−"}
                   {formatCurrency(r.amount, r.currency)}
                 </span>

@@ -66,22 +66,22 @@ export function UserFinanceDialog({ row, email, onClose }: {
           <Stat
             label={isNative(displayCurrency) ? "Income (all)" : `Income (all) · ${displayCurrency}`}
             value={formatSplit(row.incomeTotalByCurrency, displayCurrency)}
-            tone="text-emerald-400"
+            tone="text-emerald-600 dark:text-emerald-400"
           />
           <Stat
             label={isNative(displayCurrency) ? "Expenses (all)" : `Expenses (all) · ${displayCurrency}`}
             value={formatSplit(row.expensesTotalByCurrency, displayCurrency)}
-            tone="text-red-400"
+            tone="text-red-600 dark:text-red-400"
           />
           <Stat
             label={isNative(displayCurrency) ? "Expenses (MTD)" : `Expenses (MTD) · ${displayCurrency}`}
             value={formatSplit(row.expensesThisMonthByCurrency, displayCurrency)}
-            tone="text-zinc-100"
+            tone="text-slate-900 dark:text-white"
           />
           <Stat
             label={isNative(displayCurrency) ? "Saved in envelopes" : `Saved in envelopes · ${displayCurrency}`}
             value={formatSplit(row.savedTotalByCurrency, displayCurrency)}
-            tone="text-blue-400"
+            tone="text-[#0078D4] dark:text-blue-400"
           />
         </div>
 
@@ -117,15 +117,15 @@ export function UserFinanceDialog({ row, email, onClose }: {
                     <TableRow key={t.id}>
                       <TableCell>{formatDate(t.occurred_at)}</TableCell>
                       <TableCell>
-                        <p className="font-medium text-zinc-100">{t.title}</p>
-                        {t.note ? <p className="text-[11px] text-zinc-500">{t.note}</p> : null}
+                        <p className="font-medium text-slate-900 dark:text-zinc-100">{t.title}</p>
+                        {t.note ? <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t.note}</p> : null}
                       </TableCell>
                       <TableCell>{titleize(t.category)}</TableCell>
                       <TableCell>
                         <Badge variant={t.kind === "income" ? "success" : "danger"}>{titleize(t.kind)}</Badge>
                       </TableCell>
                       <TableCell
-                        className={t.kind === "income" ? "text-right font-semibold text-emerald-400" : "text-right font-semibold text-red-400"}
+                        className={t.kind === "income" ? "text-right font-semibold text-emerald-600 dark:text-emerald-400" : "text-right font-semibold text-red-600 dark:text-red-400"}
                       >
                         {t.kind === "income" ? "+" : "−"}
                         {formatCurrency(t.amount, t.currency)}
@@ -165,8 +165,8 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: stri
   // shrink one step instead of overflowing the pill, and wrap as a fallback.
   const size = value.length <= 18 ? "text-sm" : value.length <= 30 ? "text-xs" : "text-[11px]";
   return (
-    <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
-      <p className="break-words text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40 p-3">
+      <p className="break-words text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
       <p className={`mt-1 break-words font-semibold leading-tight ${size} ${tone}`}>{value}</p>
     </div>
   );

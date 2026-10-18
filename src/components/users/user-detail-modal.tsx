@@ -176,8 +176,8 @@ export function UserDetailModal({
         ) : null}
 
         {authUser ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-black/40 p-3">
-            <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">Account actions</span>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40 p-3">
+            <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Account actions</span>
             {isBanned ? (
               <Button variant="secondary" size="sm" onClick={() => askConfirm("unban")} disabled={actionBusy !== null}>
                 {actionBusy === "unban" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
@@ -290,12 +290,12 @@ export function UserDetailModal({
           <MiniStat
             label={isNative(displayCurrency) ? "Net (all time)" : `Net (all time) · ${displayCurrency}`}
             value={formatSplit(user.netTotalByCurrency, displayCurrency)}
-            tone={user.netTotal >= 0 ? "text-emerald-400" : "text-red-400"}
+            tone={user.netTotal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
           />
           <MiniStat
             label={isNative(displayCurrency) ? "Saved" : `Saved · ${displayCurrency}`}
             value={formatSplit(user.savedTotalByCurrency, displayCurrency)}
-            tone="text-blue-400"
+            tone="text-[#0078D4] dark:text-blue-400"
           />
         </div>
 
@@ -416,13 +416,13 @@ export function UserDetailModal({
   );
 }
 
-function MiniStat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {
+function MiniStat({ label, value, tone = "text-slate-900 dark:text-white" }: { label: string; value: string; tone?: string }) {
   // Multi-currency splits (`AED 1,200 · KWD 300`) are much longer than a
   // single code — scale down and wrap instead of clipping with an ellipsis.
   const size = value.length <= 14 ? "text-lg" : value.length <= 24 ? "text-base" : "text-sm";
   return (
-    <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
       <p className={cn("mt-1 break-words font-semibold leading-tight", size, tone)}>{value}</p>
     </div>
   );

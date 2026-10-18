@@ -57,13 +57,17 @@ export function BudgetBars({ ownerId }: { ownerId?: string } = {}) {
         {statuses.map((b) => (
           <div key={b.category}>
             <div className="mb-1.5 flex items-center justify-between text-sm">
-              <span className="font-medium text-zinc-100">{b.label}</span>
-              <span className="text-xs text-zinc-400">
+              <span className="font-medium text-slate-900 dark:text-zinc-100">{b.label}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 {formatSplit(b.spentByCurrency, displayCurrency)} / {formatSplit(b.limitByCurrency, displayCurrency)}
                 <span
                   className={cn(
                     "ml-2 font-semibold",
-                    b.state === "danger" ? "text-red-400" : b.state === "warning" ? "text-amber-400" : "text-emerald-400",
+                    b.state === "danger"
+                      ? "text-red-600 dark:text-red-400"
+                      : b.state === "warning"
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-emerald-600 dark:text-emerald-400",
                   )}
                 >
                   {Math.round(b.utilization * 100)}%

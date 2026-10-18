@@ -52,15 +52,15 @@ export function EnvelopeCards({ ownerId }: { ownerId?: string } = {}) {
           const remaining = Math.max(target - saved, 0);
           const monthsLeft = monthly > 0 ? Math.ceil(remaining / monthly) : null;
           return (
-            <div key={env.id} className="rounded-xl border border-zinc-800 bg-black/40 p-4">
+            <div key={env.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-black/40 p-4">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-zinc-100">{env.name}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">{env.name}</p>
                 <Ring percentage={Math.round(pct * 100)} />
               </div>
-              <p className="mt-2 break-words text-lg font-semibold leading-tight text-white">
+              <p className="mt-2 break-words text-lg font-semibold leading-tight text-slate-900 dark:text-white">
                 {formatCurrency(saved, isNative(displayCurrency) ? nativeCurrency : displayCurrency)}
               </p>
-              <p className="break-words text-[11px] leading-relaxed text-zinc-500">
+              <p className="break-words text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                 of {formatCurrency(target, isNative(displayCurrency) ? nativeCurrency : displayCurrency)} target ·{" "}
                 {formatCurrency(monthly, isNative(displayCurrency) ? nativeCurrency : displayCurrency)}/mo
                 {monthsLeft !== null ? ` · ~${monthsLeft}mo left` : ""}
@@ -85,7 +85,7 @@ function Ring({ percentage }: { percentage: number }) {
   return (
     <div className="relative h-11 w-11">
       <svg viewBox="0 0 40 40" className="h-11 w-11 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#27272a" strokeWidth="4" />
+        <circle cx="20" cy="20" r={r} fill="none" className="stroke-zinc-200 dark:stroke-zinc-800" strokeWidth="4" />
         <circle
           cx="20"
           cy="20"

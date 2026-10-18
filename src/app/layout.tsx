@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WazyDataProvider } from "@/components/providers/data-provider";
 import { DisplayCurrencyProvider } from "@/components/providers/currency-provider";
+import { AdminAuthProvider } from "@/components/providers/admin-auth-provider";
 
 export const metadata: Metadata = {
   title: "finavig Admin Console",
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
         <ThemeProvider>
           <DisplayCurrencyProvider>
-            <WazyDataProvider>{children}</WazyDataProvider>
+            <AdminAuthProvider>
+              <WazyDataProvider>{children}</WazyDataProvider>
+            </AdminAuthProvider>
           </DisplayCurrencyProvider>
         </ThemeProvider>
       </body>

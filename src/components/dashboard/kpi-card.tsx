@@ -12,11 +12,26 @@ interface KpiCardProps {
 }
 
 const ACCENTS = {
-  white: { icon: "bg-zinc-800 text-zinc-100", value: "text-white" },
-  blue: { icon: "bg-blue-500/10 text-blue-400", value: "text-blue-400" },
-  emerald: { icon: "bg-emerald-500/10 text-emerald-400", value: "text-emerald-400" },
-  amber: { icon: "bg-amber-500/10 text-amber-400", value: "text-amber-400" },
-  red: { icon: "bg-red-500/10 text-red-400", value: "text-red-400" },
+  white: {
+    icon: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-800",
+    value: "text-zinc-900 dark:text-white",
+  },
+  blue: {
+    icon: "bg-[#EFF6FC] text-[#0078D4] border-[#C7E0F4] dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30",
+    value: "text-[#0078D4] dark:text-blue-400",
+  },
+  emerald: {
+    icon: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30",
+    value: "text-emerald-600 dark:text-emerald-400",
+  },
+  amber: {
+    icon: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30",
+    value: "text-amber-600 dark:text-amber-400",
+  },
+  red: {
+    icon: "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30",
+    value: "text-red-600 dark:text-red-400",
+  },
 };
 
 /**
@@ -37,10 +52,10 @@ export function statValueSizeClass(value: string): string {
 export function KpiCard({ title, value, subvalue, icon, accent = "white", loading }: KpiCardProps) {
   const a = ACCENTS[accent];
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.36)]">
+    <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.36)] transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{title}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{title}</p>
           {loading ? (
             <Skeleton className="mt-2 h-8 w-28" />
           ) : (
@@ -58,11 +73,11 @@ export function KpiCard({ title, value, subvalue, icon, accent = "white", loadin
             loading ? (
               <Skeleton className="mt-2 h-3 w-20" />
             ) : (
-              <p className="mt-1 break-words text-xs leading-relaxed text-zinc-500">{subvalue}</p>
+              <p className="mt-1 break-words text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{subvalue}</p>
             )
           ) : null}
         </div>
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800", a.icon)}>
+        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", a.icon)}>
           {icon}
         </div>
       </div>

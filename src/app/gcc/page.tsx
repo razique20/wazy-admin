@@ -33,12 +33,12 @@ import { CURRENCIES, fractionDigitsFor, isNative, splitAdd, type CurrencySplit }
 import { formatCurrency, formatNumber, formatSplit } from "@/lib/format";
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#0a0a0a",
-  border: "1px solid #27272a",
+  backgroundColor: "var(--chart-tooltip-bg, #0a0a0a)",
+  border: "1px solid var(--chart-tooltip-border, #27272a)",
   borderRadius: "8px",
-  color: "#e4e4e7",
+  color: "var(--chart-tooltip-text, #e4e4e7)",
   fontSize: "12px",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+  boxShadow: "var(--chart-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.5))",
 };
 
 /**
@@ -340,12 +340,12 @@ export default function GccOverviewPage() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1f" vertical={false} />
-                  <XAxis dataKey="country" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "#18181b" }} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "#a1a1aa" }} />
-                  <Bar dataKey="Documents" fill="#0070f3" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #1c1c1f)" vertical={false} />
+                  <XAxis dataKey="country" tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--chart-grid, #18181b)", opacity: 0.5 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--chart-axis, #a1a1aa)" }} />
+                  <Bar dataKey="Documents" fill="#0078d4" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Transactions" fill="#0cce6b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -369,10 +369,10 @@ export default function GccOverviewPage() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={moneyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1f" vertical={false} />
-                    <XAxis dataKey="country" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #1c1c1f)" vertical={false} />
+                    <XAxis dataKey="country" tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis
-                      tick={{ fill: "#71717a", fontSize: 11 }}
+                      tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
@@ -381,7 +381,7 @@ export default function GccOverviewPage() {
                       contentStyle={TOOLTIP_STYLE}
                       formatter={(v) => formatCurrency(Number(v), native ? "AED" : displayCurrency)}
                     />
-                    <Legend wrapperStyle={{ fontSize: 12, color: "#a1a1aa" }} />
+                    <Legend wrapperStyle={{ fontSize: 12, color: "var(--chart-axis, #a1a1aa)" }} />
                     <Bar dataKey="Income" fill="#0cce6b" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Expenses" fill="#ee4d4d" radius={[4, 4, 0, 0]} />
                   </BarChart>

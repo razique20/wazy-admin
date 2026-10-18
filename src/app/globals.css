@@ -3,7 +3,39 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light dark;
+  --azure-blue: #0078d4;
+  --azure-blue-hover: #106ebe;
+  --azure-sidebar-bg: #ebf1f8;
+  --azure-sidebar-border: #d6e0ec;
+  --azure-card-bg: #ffffff;
+  --azure-card-border: #e2e8f0;
+  --azure-banner-bg: #eff6fc;
+  --azure-banner-border: #c7e0f4;
+  --azure-banner-text: #0078d4;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-tooltip-text: #0f172a;
+  --chart-tooltip-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+html.dark {
   color-scheme: dark;
+  --azure-sidebar-bg: rgba(9, 9, 11, 0.4);
+  --azure-sidebar-border: rgba(39, 39, 42, 0.8);
+  --azure-card-bg: rgba(9, 9, 11, 0.6);
+  --azure-card-border: #27272a;
+  --azure-banner-bg: rgba(0, 120, 212, 0.1);
+  --azure-banner-border: rgba(0, 120, 212, 0.3);
+  --azure-banner-text: #60a5fa;
+  --chart-grid: #27272a;
+  --chart-axis: #71717a;
+  --chart-tooltip-bg: #0a0a0a;
+  --chart-tooltip-border: #27272a;
+  --chart-tooltip-text: #e4e4e7;
+  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 html,
@@ -12,28 +44,56 @@ body {
 }
 
 body {
-  @apply bg-black text-zinc-100 antialiased;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base theme background and text */
+html.dark body {
+  background-color: #000000;
+  color: #f4f4f5;
+}
+
+html:not(.dark) body,
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 ::selection {
-  background: rgba(0, 112, 243, 0.4);
-  color: #fff;
+  background: rgba(0, 120, 212, 0.3);
+  color: inherit;
 }
 
 /* Slim scrollbars for panels & tables */
 * {
   scrollbar-width: thin;
+}
+
+html.dark * {
   scrollbar-color: rgb(63 63 70) transparent;
 }
+
+html:not(.dark) * {
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-*::-webkit-scrollbar-thumb {
+
+html.dark *::-webkit-scrollbar-thumb {
   background: rgb(63 63 70);
   border-radius: 3px;
 }
+
+html:not(.dark) *::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 3px;
+}
+
 *::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -41,4 +101,113 @@ body {
 /* Recharts focus outlines are noisy in dashboards */
 .recharts-wrapper :focus {
   outline: none;
+}
+
+/* Recharts Tooltip Theme Variables */
+.recharts-default-tooltip {
+  background-color: var(--chart-tooltip-bg) !important;
+  border-color: var(--chart-tooltip-border) !important;
+  color: var(--chart-tooltip-text) !important;
+  box-shadow: var(--chart-tooltip-shadow) !important;
+  border-radius: 8px !important;
+}
+
+.recharts-tooltip-item {
+  color: var(--chart-tooltip-text) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Microsoft Azure Light Mode Theme Fallbacks & Overrides                     */
+/* -------------------------------------------------------------------------- */
+
+/* Surfaces */
+html:not(.dark) .bg-black {
+  background-color: #f8fafc;
+}
+html:not(.dark) .bg-black\/80 {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+html:not(.dark) .bg-black\/40 {
+  background-color: #ffffff;
+}
+html:not(.dark) .bg-zinc-950 {
+  background-color: #ffffff;
+}
+html:not(.dark) .bg-zinc-950\/40 {
+  background-color: #ebf1f8; /* Azure sidebar signature light blue */
+}
+html:not(.dark) .bg-zinc-950\/60 {
+  background-color: #ffffff;
+}
+html:not(.dark) .bg-zinc-900 {
+  background-color: #f1f5f9;
+}
+html:not(.dark) .bg-zinc-900\/50,
+html:not(.dark) .bg-zinc-900\/60 {
+  background-color: #f8fafc;
+}
+html:not(.dark) .bg-zinc-800 {
+  background-color: #e2e8f0;
+}
+html:not(.dark) .bg-zinc-800\/60,
+html:not(.dark) .bg-zinc-800\/70 {
+  background-color: #e2e8f0;
+}
+
+/* Borders */
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-800\/80,
+html:not(.dark) .border-zinc-800\/70,
+html:not(.dark) .border-zinc-800\/60,
+html:not(.dark) .border-zinc-800\/50 {
+  border-color: #e2e8f0;
+}
+html:not(.dark) .border-zinc-700 {
+  border-color: #cbd5e1;
+}
+
+/* Typography (preserve text-white on colored buttons) */
+html:not(.dark) .text-zinc-100 {
+  color: #0f172a;
+}
+html:not(.dark) .text-zinc-200 {
+  color: #1e293b;
+}
+html:not(.dark) .text-zinc-300 {
+  color: #334155;
+}
+html:not(.dark) .text-zinc-400 {
+  color: #64748b;
+}
+html:not(.dark) .text-zinc-500 {
+  color: #64748b;
+}
+html:not(.dark) .text-zinc-600 {
+  color: #94a3b8;
+}
+
+/* Hover states */
+html:not(.dark) .hover\:bg-zinc-900\/60:hover,
+html:not(.dark) .hover\:bg-zinc-900\/50:hover,
+html:not(.dark) .hover\:bg-zinc-900:hover {
+  background-color: #f1f5f9;
+}
+html:not(.dark) .hover\:bg-zinc-800:hover {
+  background-color: #e2e8f0;
+}
+html:not(.dark) .hover\:border-zinc-700:hover {
+  border-color: #cbd5e1;
+}
+html:not(.dark) .hover\:text-zinc-100:hover {
+  color: #0f172a;
+}
+
+/* Azure Light Theme Accent Utilities */
+.azure-banner {
+  background-color: #eff6fc;
+  border-color: #c7e0f4;
+  color: #0078d4;
+}
+.azure-banner-text {
+  color: #0078d4;
 }

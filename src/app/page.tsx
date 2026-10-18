@@ -42,12 +42,12 @@ import { isNative } from "@/lib/currency";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#0a0a0a",
-  border: "1px solid #27272a",
+  backgroundColor: "var(--chart-tooltip-bg, #0a0a0a)",
+  border: "1px solid var(--chart-tooltip-border, #27272a)",
   borderRadius: "8px",
-  color: "#e4e4e7",
+  color: "var(--chart-tooltip-text, #e4e4e7)",
   fontSize: "12px",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+  boxShadow: "var(--chart-tooltip-shadow, 0 4px 12px rgba(0,0,0,0.5))",
 };
 
 // Vercel-ish monochrome + blue series palette
@@ -340,7 +340,7 @@ export default function OverviewPage() {
                     key={c.code}
                     href="/gcc"
                     className={cn(
-                      "rounded-xl border border-zinc-800 bg-black/40 p-3 transition-colors hover:border-zinc-700",
+                      "rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-black/40 p-3 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700",
                       !active && "opacity-50",
                     )}
                   >
@@ -395,10 +395,10 @@ export default function OverviewPage() {
                       <stop offset="100%" stopColor={SERIES.gray} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1f" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #1c1c1f)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis
-                    tick={{ fill: "#71717a", fontSize: 11 }}
+                    tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
@@ -531,10 +531,10 @@ export default function OverviewPage() {
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={horizonData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1f" vertical={false} />
-                <XAxis dataKey="bucket" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "#18181b" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #1c1c1f)" vertical={false} />
+                <XAxis dataKey="bucket" tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fill: "var(--chart-axis, #71717a)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--chart-grid, #18181b)", opacity: 0.5 }} />
                 <Bar dataKey="Documents" radius={[4, 4, 0, 0]}>
                   {horizonData.map((_, i) => (
                     <Cell key={i} fill={[SERIES.red, SERIES.amber, SERIES.blue, SERIES.cyan, SERIES.emerald][i]} />

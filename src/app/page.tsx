@@ -187,6 +187,13 @@ export default function OverviewPage() {
   // Platform widgets (doc §12)
   const supportStats = useMemo(() => computeSupportStats(data.supportRequests), [data.supportRequests]);
   const aiCalls = useMemo(() => totalAiCalls(data.aiQuotaUsage, quotaMonthKey()), [data.aiQuotaUsage]);
+  const aiAdoption = useMemo(
+    () =>
+      authUsers.length > 0 && data.aiQuotaUsage.length > 0
+        ? computeAiAdoption(data.aiQuotaUsage, authUsers, quotaMonthKey())
+        : null,
+    [data.aiQuotaUsage, authUsers],
+  );
   const platform = useMemo(() => {
     const resolved: Record<string, ReturnType<typeof toTier>> = {};
     for (const [userId, raw] of Object.entries(tiers)) resolved[userId] = toTier(raw);
@@ -226,7 +233,7 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Platform KPIs (doc §12) */}
+      {/* Platform & Financial KPI Cards (2 responsive rows of 4) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Total Users"
@@ -234,6 +241,7 @@ export default function OverviewPage() {
           subvalue={`${platform.newUsers7d} new in the last 7 days`}
           icon={<Users className="h-4 w-4" />}
           accent="white"
+          href="/users"
           loading={loading && authUsers.length === 0}
         />
         <KpiCard
@@ -242,6 +250,7 @@ export default function OverviewPage() {
           subvalue={`${platform.counts.plus} ${TIER_LABELS.plus} · ${platform.counts.business} ${TIER_LABELS.business} · ${platform.expiringPlans} plans end ≤30d`}
           icon={<TrendingUp className="h-4 w-4" />}
           accent={platform.counts.plus + platform.counts.business > 0 ? "emerald" : "white"}
+          href="/subscriptions"
           loading={loading && authUsers.length === 0}
         />
         <KpiCard
@@ -250,31 +259,29 @@ export default function OverviewPage() {
           subvalue={`${supportStats.trackingRequests} tracking requests (feature demand)`}
           icon={<LifeBuoy className="h-4 w-4" />}
           accent={supportStats.open > 0 ? "amber" : "blue"}
+          href="/support"
           loading={loading}
         />
         <KpiCard
-          title="AI Calls This Month"
-          value={String(aiCalls)}
-          subvalue="Across all users and AI features"
+          title="AI Usage & Adoption"
+          value={aiAdoption ? `${aiAdoption.adoptionRate.toFixed(1)}%` : `${formatNumber(aiCalls)} calls`}
+          subvalue={
+            aiAdoption
+              ? `${formatNumber(aiCalls)} calls MTD · ${aiAdoption.usersWithAiUsage} of ${aiAdoption.activeUsers} active users`
+              : `${formatNumber(aiCalls)} calls across all users and AI features`
+          }
           icon={<Bot className="h-4 w-4" />}
-          accent="blue"
+          accent={aiAdoption && aiAdoption.adoptionRate > 20 ? "emerald" : "blue"}
+          href="/ai-adoption"
           loading={loading}
         />
-        <AIAdaptationWidget
-          authUsers={authUsers}
-          aiQuotaUsage={data.aiQuotaUsage}
-          loading={loading}
-        />
-      </div>
-
-      {/* KPI grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Total Collections"
           value={String(kpis.totalCollections)}
           subvalue={`${kpis.personalCollections} personal · ${kpis.companyCollections} company`}
           icon={<FolderKanban className="h-4 w-4" />}
           accent="white"
+          href="/collections"
           loading={loading}
         />
         <KpiCard
@@ -283,6 +290,7 @@ export default function OverviewPage() {
           subvalue={`${kpis.urgentExpiries} expiring <30d · ${kpis.expiredDocuments} expired`}
           icon={<FileText className="h-4 w-4" />}
           accent={kpis.urgentExpiries + kpis.expiredDocuments > 0 ? "amber" : "blue"}
+          href="/collections"
           loading={loading}
         />
         <KpiCard
@@ -291,6 +299,7 @@ export default function OverviewPage() {
           subvalue={`${formatSplit(kpis.monthlyIncomeByCurrency, displayCurrency)} in · ${formatSplit(kpis.monthlyExpensesByCurrency, displayCurrency)} out`}
           icon={kpis.netCashFlow >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
           accent={kpis.netCashFlow >= 0 ? "emerald" : "red"}
+          href="/finance"
           loading={loading}
         />
         <KpiCard
@@ -299,6 +308,7 @@ export default function OverviewPage() {
           subvalue="Across all category budgets (MTD)"
           icon={<Gauge className="h-4 w-4" />}
           accent={kpis.budgetUtilization > 1 ? "red" : kpis.budgetUtilization > 0.8 ? "amber" : "blue"}
+          href="/finance"
           loading={loading}
         />
       </div>
@@ -543,48 +553,9 @@ export default function OverviewPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </CardContent>          </Card>
+        </CardContent>
+      </Card>
     </div>
-  );
-}
-
-/**
- * AI Adaptation widget for the dashboard.
- * Shows adoption rate and quick stats at a glance.
- */
-function AIAdaptationWidget({
-  authUsers,
-  aiQuotaUsage,
-  loading,
-}: {
-  authUsers: AuthUser[];
-  aiQuotaUsage: import("@/lib/types").AiQuotaUsage[];
-  loading: boolean;
-}) {
-  const aiAdoption = useMemo(
-    () =>
-      authUsers.length > 0 && aiQuotaUsage.length > 0
-        ? computeAiAdoption(aiQuotaUsage, authUsers, quotaMonthKey())
-        : null,
-    [aiQuotaUsage, authUsers]
-  );
-
-  if (!aiAdoption) {
-    return null; // Don't show widget when no data
-  }
-
-  const exhaustedCount = aiAdoption.quotaExhaustion.filter((u) => u.status === "exhausted").length;
-  const warningCount = aiAdoption.quotaExhaustion.filter((u) => u.status === "warning").length;
-
-  return (
-    <KpiCard
-      title="AI Adoption Rate"
-      value={`${aiAdoption.adoptionRate.toFixed(1)}%`}
-      subvalue={`${aiAdoption.usersWithAiUsage} of ${aiAdoption.activeUsers} active users · ${exhaustedCount} exhausted${warningCount > 0 ? ` · ${warningCount} warning` : ""}`}
-      icon={<Bot className="h-4 w-4" />}
-      accent={aiAdoption.adoptionRate > 20 ? "emerald" : "blue"}
-      loading={loading}
-      />
   );
 }
 

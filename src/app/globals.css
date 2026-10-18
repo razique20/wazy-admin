@@ -13,8 +13,8 @@
   --azure-banner-bg: #eff6fc;
   --azure-banner-border: #c7e0f4;
   --azure-banner-text: #0078d4;
-  --chart-grid: #e2e8f0;
-  --chart-axis: #64748b;
+  --chart-grid: #cbd5e1;
+  --chart-axis: #334155;
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: #e2e8f0;
   --chart-tooltip-text: #0f172a;
@@ -171,19 +171,25 @@ html:not(.dark) .text-zinc-100 {
   color: #0f172a;
 }
 html:not(.dark) .text-zinc-200 {
-  color: #1e293b;
+  color: #0f172a;
 }
 html:not(.dark) .text-zinc-300 {
-  color: #334155;
+  color: #1e293b;
 }
 html:not(.dark) .text-zinc-400 {
-  color: #64748b;
+  color: #334155;
 }
 html:not(.dark) .text-zinc-500 {
-  color: #64748b;
+  color: #334155;
 }
 html:not(.dark) .text-zinc-600 {
-  color: #94a3b8;
+  color: #1e293b;
+}
+html:not(.dark) .text-zinc-700 {
+  color: #0f172a;
+}
+html:not(.dark) .text-zinc-800 {
+  color: #0f172a;
 }
 
 /* Hover states */

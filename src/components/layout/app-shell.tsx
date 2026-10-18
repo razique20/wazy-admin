@@ -61,10 +61,10 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
             href={item.href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150",
-              exact && "bg-white text-[#0078D4] shadow-sm font-medium dark:bg-zinc-900 dark:text-white dark:shadow-none",
-              childActive && "bg-white/70 text-[#0078D4] font-medium dark:bg-zinc-800/60 dark:text-zinc-300",
-              !active && "text-zinc-600 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-100",
+              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+              exact && "bg-white text-[#0078D4] shadow-xs font-semibold dark:bg-zinc-900 dark:text-white dark:shadow-none",
+              childActive && "bg-white/80 text-[#0078D4] font-semibold dark:bg-zinc-800/60 dark:text-zinc-300",
+              !active && "text-slate-800 hover:bg-white/80 hover:text-slate-950 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-100",
             )}
           >
             <Icon
@@ -72,7 +72,7 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
                 "h-4 w-4 shrink-0 transition-colors",
                 exact && "text-[#0078D4] dark:text-white",
                 childActive && "text-[#0078D4] dark:text-zinc-200",
-                !exact && !childActive && "text-zinc-400 dark:text-zinc-500 group-hover:text-[#0078D4] dark:group-hover:text-zinc-200",
+                !exact && !childActive && "text-slate-600 group-hover:text-[#0078D4] dark:text-zinc-400 dark:group-hover:text-zinc-200",
               )}
             />
             <span className="truncate">{item.label}</span>
@@ -129,15 +129,15 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 lg:hidden">
+              <h1 className="text-sm font-semibold text-slate-900 dark:text-zinc-100 lg:hidden">
                 {NAV_ITEMS.find((i) => i.href === pathname)?.label ?? "finavig Admin"}
               </h1>
-              <p className="hidden text-xs text-zinc-500 dark:text-zinc-500 lg:block">finavig Admin · Document & Financial Intelligence</p>
+              <p className="hidden text-xs text-slate-700 dark:text-zinc-400 font-medium lg:block">finavig Admin · Document & Financial Intelligence</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5">
             {lastUpdated ? (
-              <span className="hidden text-xs text-zinc-500 dark:text-zinc-600 md:block">
+              <span className="hidden text-xs text-slate-700 dark:text-zinc-400 font-medium md:block">
                 Synced {lastUpdated.toLocaleTimeString("en-GB")}
               </span>
             ) : null}
@@ -165,12 +165,12 @@ function Brand() {
       </div>
       <div className="flex flex-col min-w-0">
         <div className="flex items-center gap-1.5 leading-none">
-          <p className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">finavig</p>
+          <p className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">finavig</p>
           <span className="rounded bg-[#EFF6FC] px-1.5 py-0.5 text-[10px] font-semibold text-[#0078D4] dark:bg-zinc-800 dark:text-zinc-300">
             Admin
           </span>
         </div>
-        <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">Financial Navigator</p>
+        <p className="truncate text-[10px] text-slate-700 dark:text-zinc-400 font-semibold leading-tight">Financial Navigator</p>
       </div>
     </div>
   );
@@ -194,12 +194,12 @@ function SidebarFooter({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <p className="text-xs font-medium text-zinc-800 dark:text-zinc-300">Supabase connected</p>
+          <p className="text-xs font-semibold text-slate-900 dark:text-zinc-200">Supabase connected</p>
         </div>
         <p
           className={cn(
-            "mt-1 truncate font-mono text-[10px]",
-            isUsingDefaultProjectUrl ? "text-amber-600 dark:text-amber-400" : "text-zinc-500 dark:text-zinc-500",
+            "mt-1 truncate font-mono text-[10px] font-medium",
+            isUsingDefaultProjectUrl ? "text-amber-700 dark:text-amber-400" : "text-slate-700 dark:text-zinc-400",
           )}
           title={
             isUsingDefaultProjectUrl
@@ -211,10 +211,10 @@ function SidebarFooter({
           {isUsingDefaultProjectUrl ? " (fallback!)" : ""}
         </p>
         {lastUpdated ? (
-          <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-600">Last sync {lastUpdated.toLocaleTimeString("en-GB")}</p>
+          <p className="mt-1 text-[10px] text-slate-700 dark:text-zinc-400 font-medium">Last sync {lastUpdated.toLocaleTimeString("en-GB")}</p>
         ) : null}
         {isUsingDefaultProjectUrl ? (
-          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-700 dark:text-amber-300">
+          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-800 dark:text-amber-300">
             Env drift: set NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY in this deployment and redeploy.
           </p>
         ) : null}

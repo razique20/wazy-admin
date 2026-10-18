@@ -14,7 +14,6 @@ import {
   Power,
   KeyRound,
 } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
 import {
   Card,
   CardContent,
@@ -124,8 +123,7 @@ alter table public.admin_roles enable row level security;`;
   };
 
   return (
-    <AppShell loading={loading} onRefresh={fetchAdmins}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Page Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -464,6 +462,5 @@ alter table public.admin_roles enable row level security;`;
           onSuccess={fetchAdmins}
         />
       </div>
-    </AppShell>
-  );
+    );
 }

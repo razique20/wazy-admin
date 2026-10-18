@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import { usePathname } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useWazyData, type WazyDataState } from "@/lib/hooks";
@@ -14,6 +15,18 @@ export function useWazy(): WazyDataState {
 }
 
 export function WazyDataProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login";
+
+  // When on the /login route, do NOT wrap with AppShell or initiate platform data fetches
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  return <ProtectedWazyData>{children}</ProtectedWazyData>;
+}
+
+function ProtectedWazyData({ children }: { children: React.ReactNode }) {
   const state = useWazyData();
   const tableErrorList = Object.entries(state.tableErrors ?? {});
 

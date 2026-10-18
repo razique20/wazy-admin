@@ -17,6 +17,7 @@ import {
   X,
   RefreshCw,
   Globe2,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/primitives";
@@ -27,6 +28,7 @@ import { SUPABASE_URL, isUsingDefaultProjectUrl, supabaseProjectRef } from "@/li
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users },
+  { href: "/admins", label: "Admins", icon: ShieldCheck },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/support", label: "Support Requests", icon: LifeBuoy },
   { href: "/ai-dashboard", label: "AI Dashboard", icon: Bot },

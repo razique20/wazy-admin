@@ -19,6 +19,10 @@ export const AUDIT_ACTIONS = [
   "row.delete",
   "user.data_purge",
   "data.wipe_all",
+  "admin.grant",
+  "admin.revoke",
+  "admin.update_role",
+  "admin.toggle_status",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -44,8 +44,8 @@ const ACCENTS = {
  * an ellipsis. Shrinking one step keeps the whole amount on the card; pair it
  * with `break-words` so nothing is ever hidden.
  */
-export function statValueSizeClass(value: string): string {
-  const len = value.length;
+export function statValueSizeClass(value: string | number | null | undefined): string {
+  const len = (value ?? "").toString().length;
   if (len <= 12) return "text-2xl";
   if (len <= 20) return "text-xl";
   if (len <= 32) return "text-lg";

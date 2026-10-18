@@ -249,7 +249,7 @@ export default function UsersPage() {
           value={String(totals.users)}
           hint={authSource === "service_role" || authSource === "direct_pg" ? "from auth.users" : "from data owners"}
         />
-        <Stat label="Documents held" value={String(totals.documents)} tone="text-white" />
+        <Stat label="Documents held" value={String(totals.documents)} tone="text-slate-900 dark:text-white" />
         <Stat
           label={
             isNative(displayCurrency)
@@ -257,9 +257,9 @@ export default function UsersPage() {
               : `Net cash flow (all users) · ${displayCurrency}`
           }
           value={netTotalsLabel}
-          tone={totals.net >= 0 ? "text-emerald-400" : "text-red-400"}
+          tone={totals.net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
         />
-        <Stat label="Urgent / expired docs" value={String(totals.urgent)} tone={totals.urgent > 0 ? "text-amber-400" : "text-white"} />
+        <Stat label="Urgent / expired docs" value={String(totals.urgent)} tone={totals.urgent > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"} />
       </div>
 
       {actionNotice ? (
@@ -504,13 +504,13 @@ export default function UsersPage() {
   );
 }
 
-function Stat({ label, value, hint, tone = "text-white" }: { label: string; value: string; hint?: string; tone?: string }) {
+function Stat({ label, value, hint, tone = "text-slate-900 dark:text-white" }: { label: string; value: string; hint?: string; tone?: string }) {
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{label}</p>
         <p className={cn("mt-1 break-words font-semibold leading-tight", statValueSizeClass(value), tone)}>{value}</p>
-        {hint ? <p className="mt-0.5 break-words text-[11px] text-zinc-600">{hint}</p> : null}
+        {hint ? <p className="mt-0.5 break-words text-[11px] text-slate-600 dark:text-zinc-600 font-medium">{hint}</p> : null}
       </CardContent>
     </Card>
   );

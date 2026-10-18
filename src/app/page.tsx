@@ -374,12 +374,12 @@ export default function OverviewPage() {
                         {c.currency}
                       </Badge>
                     </p>
-                    <p className="mt-2 text-lg font-semibold text-white">{formatNumber(c.documents)}</p>
-                    <p className="text-[11px] text-zinc-500">documents</p>
-                    <p className="mt-1.5 text-lg font-semibold text-emerald-400">{formatNumber(c.transactions)}</p>
-                    <p className="text-[11px] text-zinc-500">transactions</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{formatNumber(c.documents)}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-500 font-medium">documents</p>
+                    <p className="mt-1.5 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatNumber(c.transactions)}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-500 font-medium">transactions</p>
                     {c.expenses !== 0 || c.income !== 0 ? (
-                      <p className="mt-1.5 break-words text-[11px] leading-relaxed text-zinc-400">
+                      <p className="mt-1.5 break-words text-[11px] leading-relaxed text-slate-700 dark:text-zinc-400 font-medium">
                         net {formatSplit(c.netByCurrency, displayCurrency)}
                       </p>
                     ) : null}

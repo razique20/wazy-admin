@@ -161,8 +161,8 @@ export default function AiUsagePage() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-5">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">AI calls · {quotaMonthLabel(month)}</p>
-            <p className="mt-1 text-2xl font-semibold text-white">{formatNumber(totalCalls)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">AI calls · {quotaMonthLabel(month)}</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{formatNumber(totalCalls)}</p>
           </CardContent>
         </Card>
         {AI_FEATURES.map((f) => {
@@ -170,9 +170,9 @@ export default function AiUsagePage() {
           return (
             <Card key={f}>
               <CardContent className="pt-5">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{aiFeatureLabel(f)}</p>
-                <p className="mt-1 text-2xl font-semibold text-blue-400">{formatNumber(ft?.totalCalls ?? 0)}</p>
-                <p className="mt-0.5 text-[11px] text-zinc-600">{ft?.users ?? 0} users this month</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{aiFeatureLabel(f)}</p>
+                <p className="mt-1 text-2xl font-semibold text-[#0078D4] dark:text-blue-400">{formatNumber(ft?.totalCalls ?? 0)}</p>
+                <p className="mt-0.5 text-[11px] text-slate-600 dark:text-zinc-600 font-medium">{ft?.users ?? 0} users this month</p>
               </CardContent>
             </Card>
           );
@@ -277,7 +277,7 @@ export default function AiUsagePage() {
                           {budget} / {limits["groq_ai_budget_plan"]}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-semibold text-white">{u.total}</TableCell>
+                      <TableCell className="text-right font-semibold text-slate-900 dark:text-white">{u.total}</TableCell>
                       <TableCell>
                         <span className="text-xs text-zinc-500">{formatDate(u.lastUsedAt)}</span>
                       </TableCell>

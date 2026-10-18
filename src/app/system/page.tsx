@@ -124,8 +124,8 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className="mt-1 text-2xl font-semibold text-white">{formatNumber(value)}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{label}</p>
+        <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{formatNumber(value)}</p>
       </CardContent>
     </Card>
   );
@@ -453,7 +453,7 @@ function RemindersManager({ onChanged }: { onChanged: () => void }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatTile label="Pending reminders" value={pending.length} />
-        <StatTile label="Due (remind_at ≤ today)" value={dueToday.length} tone={dueToday.length > 0 ? "text-amber-400" : "text-white"} />
+        <StatTile label="Due (remind_at ≤ today)" value={dueToday.length} tone={dueToday.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"} />
         <StatTile label="Sent" value={sent.length} />
         <StatTile label="Total scheduled" value={data.reminders.length} />
       </div>
@@ -530,11 +530,11 @@ function RemindersManager({ onChanged }: { onChanged: () => void }) {
   );
 }
 
-function StatTile({ label, value, tone = "text-white" }: { label: string; value: number; tone?: string }) {
+function StatTile({ label, value, tone = "text-slate-900 dark:text-white" }: { label: string; value: number; tone?: string }) {
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{label}</p>
         <p className={cn("mt-1 text-2xl font-semibold", tone)}>{formatNumber(value)}</p>
       </CardContent>
     </Card>
@@ -1394,10 +1394,10 @@ function ErrorReportsTab() {
             <Card>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-400" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Total Errors</span>
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">Total Errors</span>
                 </div>
-                <p className="text-2xl font-semibold text-white">{total}</p>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">{total}</p>
               </CardContent>
             </Card>
 

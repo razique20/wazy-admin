@@ -131,23 +131,23 @@ export default function FeaturePopularityPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <TrendingUp className="h-4 w-4 text-blue-400" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Total Requests</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <TrendingUp className="h-4 w-4 text-[#0078D4] dark:text-blue-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Total Requests</span>
                 </div>
-                <p className="text-2xl font-semibold text-white">{formatNumber(total)}</p>
-                <p className="text-xs text-zinc-500 mt-1">All feature requests</p>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">{formatNumber(total)}</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">All feature requests</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <Lightbulb className="h-4 w-4 text-amber-400" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Unique Features</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Unique Features</span>
                 </div>
-                <p className="text-2xl font-semibold text-amber-400">{features.length}</p>
-                <p className="text-xs text-zinc-500 mt-1">Distinct features requested</p>
+                <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">{features.length}</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">Distinct features requested</p>
               </CardContent>
             </Card>
 
@@ -208,7 +208,7 @@ export default function FeaturePopularityPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-white">{feature.request_count}</p>
+                          <p className="text-2xl font-bold text-slate-900 dark:text-white">{feature.request_count}</p>
                           <p className="text-xs text-zinc-500">requests</p>
                         </div>
                       </div>
@@ -262,7 +262,7 @@ export default function FeaturePopularityPage() {
 function PageHeader() {
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Feature Request Popularity</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Feature Request Popularity</h1>
       <p className="text-sm text-zinc-400 mt-1">
         Track which features are most requested by users. Helps prioritize roadmap decisions.
       </p>

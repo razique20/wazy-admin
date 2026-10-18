@@ -88,14 +88,14 @@ export default function SupportPage() {
     <div className="space-y-4">
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Stat label="Open tickets" value={String(stats.open)} tone={stats.open > 0 ? "text-amber-400" : "text-white"} />
-        <Stat label="In progress" value={String(stats.inProgress)} tone="text-blue-400" />
-        <Stat label="Resolved" value={String(stats.resolved)} tone="text-emerald-400" />
+        <Stat label="Open tickets" value={String(stats.open)} tone={stats.open > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"} />
+        <Stat label="In progress" value={String(stats.inProgress)} tone="text-[#0078D4] dark:text-blue-400" />
+        <Stat label="Resolved" value={String(stats.resolved)} tone="text-emerald-600 dark:text-emerald-400" />
         <Stat
           label="Tracking requests"
           value={String(stats.trackingRequests)}
           hint="Feature demand signal"
-          tone="text-white"
+          tone="text-slate-900 dark:text-white"
         />
       </div>
 
@@ -345,13 +345,13 @@ function statusLabel(status: string): string {
   return "Unknown";
 }
 
-function Stat({ label, value, hint, tone = "text-white" }: { label: string; value: string; hint?: string; tone?: string }) {
+function Stat({ label, value, hint, tone = "text-slate-900 dark:text-white" }: { label: string; value: string; hint?: string; tone?: string }) {
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{label}</p>
         <p className={cn("mt-1 text-2xl font-semibold", tone)}>{value}</p>
-        {hint ? <p className="mt-0.5 text-[11px] text-zinc-600">{hint}</p> : null}
+        {hint ? <p className="mt-0.5 text-[11px] text-slate-600 dark:text-zinc-600 font-medium">{hint}</p> : null}
       </CardContent>
     </Card>
   );

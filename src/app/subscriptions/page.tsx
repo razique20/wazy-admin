@@ -272,10 +272,10 @@ export default function SubscriptionsPage() {
     <div className="space-y-4">
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Stat label="Paying users" value={String(tierCounts.plus + tierCounts.business)} tone="text-white" />
-        <Stat label="Plus" value={String(tierCounts.plus)} tone="text-blue-400" />
-        <Stat label="Business" value={String(tierCounts.business)} tone="text-emerald-400" />
-        <Stat label="Free" value={String(tierCounts.free)} tone="text-zinc-400" />
+        <Stat label="Paying users" value={String(tierCounts.plus + tierCounts.business)} tone="text-slate-900 dark:text-white" />
+        <Stat label="Plus" value={String(tierCounts.plus)} tone="text-[#0078D4] dark:text-blue-400" />
+        <Stat label="Business" value={String(tierCounts.business)} tone="text-emerald-600 dark:text-emerald-400" />
+        <Stat label="Free" value={String(tierCounts.free)} tone="text-slate-700 dark:text-zinc-400" />
       </div>
 
       {notice && !configured ? (
@@ -632,11 +632,11 @@ function TierBadge({ tier }: { tier: UserTier }) {
   );
 }
 
-function Stat({ label, value, tone = "text-white" }: { label: string; value: string; tone?: string }) {
+function Stat({ label, value, tone = "text-slate-900 dark:text-white" }: { label: string; value: string; tone?: string }) {
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-zinc-500">{label}</p>
         <p className={cn("mt-1 text-2xl font-semibold", tone)}>{value}</p>
       </CardContent>
     </Card>

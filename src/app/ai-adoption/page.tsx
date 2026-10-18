@@ -68,7 +68,7 @@ export default function AiAdoptionPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">AI Feature Adoption</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">AI Feature Adoption</h1>
           <p className="text-sm text-zinc-400 mt-1">
             Track AI feature usage, adoption rates, and quota health across your user base.
           </p>
@@ -118,14 +118,14 @@ export default function AiAdoptionPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
                   <Users className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Active Users</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Active Users</span>
                 </div>
-                <p className="text-2xl font-semibold text-white">
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">
                   {formatNumber(activeMetrics.activeUsers)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">
                   of {formatNumber(activeMetrics.totalUsers)} total registered users
                 </p>
               </CardContent>
@@ -133,14 +133,14 @@ export default function AiAdoptionPage() {
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <Bot className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">AI Adoption Rate</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">AI Adoption Rate</span>
                 </div>
-                <p className="text-2xl font-semibold text-emerald-400">
+                <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
                   {activeMetrics.adoptionRate.toFixed(1)}%
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">
                   {formatNumber(activeMetrics.usersWithAiUsage)} users using AI features
                 </p>
               </CardContent>
@@ -148,16 +148,16 @@ export default function AiAdoptionPage() {
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">AI Calls This Month</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <TrendingUp className="h-4 w-4 text-[#0078D4] dark:text-blue-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">AI Calls This Month</span>
                 </div>
-                <p className="text-2xl font-semibold text-blue-400">
+                <p className="text-2xl font-semibold text-[#0078D4] dark:text-blue-400">
                   {formatNumber(
                     activeMetrics.byFeature.reduce((sum, f) => sum + f.totalCalls, 0)
                   )}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">
                   across {AI_FEATURES.length} AI features
                 </p>
               </CardContent>
@@ -165,14 +165,14 @@ export default function AiAdoptionPage() {
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Quota Exhausted</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Quota Exhausted</span>
                 </div>
-                <p className="text-2xl font-semibold text-amber-400">
+                <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400">
                   {formatNumber(exhaustedUsers.length)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">
                   {formatNumber(warningUsers.length)} users approaching limit
                 </p>
               </CardContent>

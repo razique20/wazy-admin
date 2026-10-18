@@ -205,7 +205,7 @@ export default function AppHealthPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">App Health & Adoption</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">App Health & Adoption</h1>
           <p className="text-sm text-zinc-400 mt-1">
             Track active users (DAU/WAU/MAU), version adoption, and platform distribution.
           </p>
@@ -268,52 +268,52 @@ export default function AppHealthPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
                   <Users className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Total Registered</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Total Registered</span>
                 </div>
-                <p className="text-2xl font-semibold text-white">
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">
                   {formatNumber(activeMetrics.totalRegisteredUsers)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">All auth.users in database</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">All auth.users in database</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-emerald-400">DAU</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">DAU</span>
                 </div>
-                <p className="text-2xl font-semibold text-emerald-400">
+                <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
                   {formatNumber(activeMetrics.activeUsers.dau)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">Daily active users</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">Daily active users</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">WAU</span>
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
+                  <TrendingUp className="h-4 w-4 text-[#0078D4] dark:text-blue-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">WAU</span>
                 </div>
-                <p className="text-2xl font-semibold text-blue-400">
+                <p className="text-2xl font-semibold text-[#0078D4] dark:text-blue-400">
                   {formatNumber(activeMetrics.activeUsers.wau)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">Weekly active users</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">Weekly active users</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="pt-5">
-                <div className="flex items-center gap-2 text-zinc-500 mb-2">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-500 mb-2">
                   <Users className="h-4 w-4" />
-                  <span className="text-[11px] font-medium uppercase tracking-wider">MAU</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">MAU</span>
                 </div>
-                <p className="text-2xl font-semibold text-white">
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">
                   {formatNumber(activeMetrics.activeUsers.mau)}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">Monthly active users</p>
+                <p className="text-xs text-slate-600 dark:text-zinc-500 mt-1">Monthly active users</p>
               </CardContent>
             </Card>
           </div>
@@ -326,31 +326,31 @@ export default function AppHealthPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 rounded-xl border border-zinc-800 bg-black/40">
-                  <Clock className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
-                  <p className="text-3xl font-bold text-emerald-400">{formatNumber(activeMetrics.activeUsers.dau)}</p>
-                  <p className="text-sm text-zinc-500 mt-1">Daily Active</p>
-                  <p className="text-xs text-zinc-600 mt-1">
+                <div className="text-center p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40">
+                  <Clock className="h-8 w-8 text-zinc-500 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(activeMetrics.activeUsers.dau)}</p>
+                  <p className="text-sm text-slate-700 dark:text-zinc-500 mt-1 font-medium">Daily Active</p>
+                  <p className="text-xs text-slate-600 dark:text-zinc-600 mt-1">
                     {activeMetrics.usersWithUsageHistory > 0
                       ? `${((activeMetrics.activeUsers.dau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}
                   </p>
                 </div>
-                <div className="text-center p-4 rounded-xl border border-zinc-800 bg-black/40">
-                  <Clock className="h-8 w-8 text-zinc-600 mx-auto mb-2 rotate-90" />
-                  <p className="text-3xl font-bold text-blue-400">{formatNumber(activeMetrics.activeUsers.wau)}</p>
-                  <p className="text-sm text-zinc-500 mt-1">Weekly Active</p>
-                  <p className="text-xs text-zinc-600 mt-1">
+                <div className="text-center p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40">
+                  <Clock className="h-8 w-8 text-zinc-500 dark:text-zinc-600 mx-auto mb-2 rotate-90" />
+                  <p className="text-3xl font-bold text-[#0078D4] dark:text-blue-400">{formatNumber(activeMetrics.activeUsers.wau)}</p>
+                  <p className="text-sm text-slate-700 dark:text-zinc-500 mt-1 font-medium">Weekly Active</p>
+                  <p className="text-xs text-slate-600 dark:text-zinc-600 mt-1">
                     {activeMetrics.usersWithUsageHistory > 0
                       ? `${((activeMetrics.activeUsers.wau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}
                   </p>
                 </div>
-                <div className="text-center p-4 rounded-xl border border-zinc-800 bg-black/40">
-                  <Users className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
-                  <p className="text-3xl font-bold text-white">{formatNumber(activeMetrics.activeUsers.mau)}</p>
-                  <p className="text-sm text-zinc-500 mt-1">Monthly Active</p>
-                  <p className="text-xs text-zinc-600 mt-1">
+                <div className="text-center p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40">
+                  <Users className="h-8 w-8 text-zinc-500 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{formatNumber(activeMetrics.activeUsers.mau)}</p>
+                  <p className="text-sm text-slate-700 dark:text-zinc-500 mt-1 font-medium">Monthly Active</p>
+                  <p className="text-xs text-slate-600 dark:text-zinc-600 mt-1">
                     {activeMetrics.usersWithUsageHistory > 0
                       ? `${((activeMetrics.activeUsers.mau / activeMetrics.usersWithUsageHistory) * 100).toFixed(1)}% of users with usage`
                       : "—"}

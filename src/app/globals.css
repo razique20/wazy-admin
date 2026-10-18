@@ -167,6 +167,9 @@ html:not(.dark) .border-zinc-700 {
 }
 
 /* Typography (preserve text-white on colored buttons) */
+html:not(.dark) .text-white:not(button):not(button *):not([class*="bg-[#0078D4]"]):not([class*="bg-[#0078D4]"] *):not([class*="bg-blue-600"]):not([class*="bg-emerald-600"]):not([class*="bg-red-600"]):not([class*="bg-amber-600"]):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #0f172a;
+}
 html:not(.dark) .text-zinc-100 {
   color: #0f172a;
 }
@@ -190,6 +193,23 @@ html:not(.dark) .text-zinc-700 {
 }
 html:not(.dark) .text-zinc-800 {
   color: #0f172a;
+}
+
+/* Light mode accent tone overrides for stat values */
+html:not(.dark) .text-amber-400 {
+  color: #d97706;
+}
+html:not(.dark) .text-emerald-400 {
+  color: #059669;
+}
+html:not(.dark) .text-blue-400 {
+  color: #0078d4;
+}
+html:not(.dark) .text-purple-400 {
+  color: #7c3aed;
+}
+html:not(.dark) .text-red-400 {
+  color: #dc2626;
 }
 
 /* Hover states */

@@ -11,16 +11,13 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  KeyRound,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { FinavigLogo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button, Input } from "@/components/ui/primitives";
 import { supabase } from "@/lib/supabase";
 import { useAdminAuth } from "@/components/providers/admin-auth-provider";
-import { cn } from "@/lib/cn";
 
 export default function LoginPage() {
   const router = useRouter();

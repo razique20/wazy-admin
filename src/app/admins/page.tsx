@@ -12,7 +12,6 @@ import {
   Copy,
   Check,
   Power,
-  KeyRound,
 } from "lucide-react";
 import {
   Card,
@@ -45,7 +44,6 @@ import { cn } from "@/lib/cn";
 
 export default function AdminsPage() {
   const [admins, setAdmins] = useState<AdminRecord[]>([]);
-  const [configured, setConfigured] = useState<boolean>(true);
   const [notMigrated, setNotMigrated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>("");
@@ -62,7 +60,6 @@ export default function AdminsPage() {
       const data = await res.json();
       if (res.ok) {
         setAdmins(data.admins ?? []);
-        setConfigured(data.configured ?? true);
         setNotMigrated(data.source === "not_migrated");
       }
     } catch {

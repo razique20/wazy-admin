@@ -34,6 +34,28 @@ interface EditAdminModalProps {
 export function EditAdminModal({ admin, allAdmins, onClose, onSuccess }: EditAdminModalProps) {
   if (!admin) return null;
 
+  return (
+    <EditAdminDialogContent
+      key={admin.userId}
+      admin={admin}
+      allAdmins={allAdmins}
+      onClose={onClose}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+function EditAdminDialogContent({
+  admin,
+  allAdmins,
+  onClose,
+  onSuccess,
+}: {
+  admin: AdminRecord;
+  allAdmins: readonly AdminRecord[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
   const [role, setRole] = useState<AdminRole>(admin.role);
   const [isActive, setIsActive] = useState<boolean>(admin.isActive);
   const [displayName, setDisplayName] = useState<string>(admin.displayName ?? "");

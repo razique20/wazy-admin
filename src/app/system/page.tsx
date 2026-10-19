@@ -34,6 +34,8 @@ import type { CustomDocumentType } from "@/lib/types";
 import { formatNumber, titleize } from "@/lib/format";
 import { APP_DATA_TABLES } from "@/lib/purge";
 import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
+import { useAdminAuth } from "@/components/providers/admin-auth-provider";
+import { authenticatedFetch } from "@/lib/auth-client";
 
 type ExportKind = "documents" | "transactions";
 
@@ -1060,6 +1062,7 @@ const WIPE_CONFIRM_TOKEN = "PURGE ALL DATA";
  */
 function DangerZone() {
   const { data, refresh } = useWazy();
+  const { isSuperAdmin } = useAdminAuth();
   // SUPABASE_SERVICE_ROLE_KEY is server-only — the browser cannot see it, so
   // ask the API for the real configuration instead of checking process.env
   // client-side (which always reports "not configured").
@@ -1127,7 +1130,7 @@ function DangerZone() {
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch("/api/admin-data/purge-all", {
+      const res = await authenticatedFetch("/api/admin-data/purge-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: projectRef }),
@@ -1150,6 +1153,22 @@ function DangerZone() {
       setTokenText("");
     }
   };
+
+  if (!isSuperAdmin) {
+    return (
+      <Card className="border-amber-500/20 bg-amber-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <CardTitle className="text-slate-900 dark:text-white">Danger Zone: Wipe All Platform Data</CardTitle>
+          </div>
+          <CardDescription>
+            Restricted to Super Administrators. Standard Administrators do not have authorization to purge platform data.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-red-500/30">

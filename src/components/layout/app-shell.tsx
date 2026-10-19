@@ -33,7 +33,7 @@ import { useAdminAuth } from "@/components/providers/admin-auth-provider";
 const NAV_ITEMS = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users },
-  { href: "/admins", label: "Admins", icon: ShieldCheck },
+  { href: "/admins", label: "Admins", icon: ShieldCheck, superAdminOnly: true },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/support", label: "Support Requests", icon: LifeBuoy },
   { href: "/ai-dashboard", label: "AI Dashboard", icon: Bot },
@@ -42,7 +42,7 @@ const NAV_ITEMS = [
   { href: "/finance", label: "Finance Activity", icon: Wallet },
   { href: "/anomalies", label: "Anomaly Detection", icon: AlertTriangle },
   { href: "/system", label: "System & Data", icon: Settings2 },
-] as const;
+];
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -75,9 +75,11 @@ export function AppShell({ children, loading, onRefresh, lastUpdated }: AppShell
     return null;
   }
 
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.superAdminOnly || isSuperAdmin);
+
   const sidebarNav = (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {NAV_ITEMS.map((item) => {
+      {visibleNavItems.map((item) => {
         const exact = pathname === item.href;
         const childActive = item.href !== "/" && pathname.startsWith(item.href) && pathname !== item.href;
         const active = exact || childActive;

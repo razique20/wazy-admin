@@ -153,3 +153,27 @@ describe("filterAdmins", () => {
     expect(filterAdmins(MOCK_ADMINS, "", "all").length).toBe(3);
   });
 });
+
+describe("verifyAdminRequest Authorization Enforcement", () => {
+  it("rejects request when Authorization header is missing", async () => {
+    const { verifyAdminRequest } = await import("@/lib/server-auth");
+    const req = new Request("http://localhost:3000/api/admin-roles");
+    const result = await verifyAdminRequest(req);
+    expect(result.authorized).toBe(false);
+    if (!result.authorized) {
+      expect(result.response.status).toBe(401);
+    }
+  });
+
+  it("rejects request when Authorization header is not Bearer", async () => {
+    const { verifyAdminRequest } = await import("@/lib/server-auth");
+    const req = new Request("http://localhost:3000/api/admin-roles", {
+      headers: { Authorization: "Basic dXNlcjpwYXNz" },
+    });
+    const result = await verifyAdminRequest(req);
+    expect(result.authorized).toBe(false);
+    if (!result.authorized) {
+      expect(result.response.status).toBe(401);
+    }
+  });
+});

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   ShieldCheck,
+  ShieldAlert,
   Crown,
   UserCheck,
   Plus,
@@ -41,8 +43,11 @@ import {
 } from "@/lib/admins";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { useAdminAuth } from "@/components/providers/admin-auth-provider";
+import { authenticatedFetch } from "@/lib/auth-client";
 
 export default function AdminsPage() {
+  const { isSuperAdmin, loading: authLoading } = useAdminAuth();
   const [admins, setAdmins] = useState<AdminRecord[]>([]);
   const [notMigrated, setNotMigrated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -56,7 +61,7 @@ export default function AdminsPage() {
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin-roles");
+      const res = await authenticatedFetch("/api/admin-roles");
       const data = await res.json();
       if (res.ok) {
         setAdmins(data.admins ?? []);
@@ -71,7 +76,7 @@ export default function AdminsPage() {
 
   const fetchAuthUsers = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin-users");
+      const res = await authenticatedFetch("/api/admin-users");
       const data = await res.json();
       if (res.ok && data.users) {
         setAuthUsers(data.users);
@@ -82,9 +87,11 @@ export default function AdminsPage() {
   }, []);
 
   useEffect(() => {
-    fetchAdmins();
-    fetchAuthUsers();
-  }, [fetchAdmins, fetchAuthUsers]);
+    if (isSuperAdmin) {
+      fetchAdmins();
+      fetchAuthUsers();
+    }
+  }, [isSuperAdmin, fetchAdmins, fetchAuthUsers]);
 
   const stats = useMemo(() => computeAdminStats(admins), [admins]);
   const filteredAdmins = useMemo(
@@ -118,6 +125,28 @@ alter table public.admin_roles enable row level security;`;
     }
     return email.slice(0, 2).toUpperCase();
   };
+
+  if (!authLoading && !isSuperAdmin) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h2 className="mt-4 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          Super Admin Privileges Required
+        </h2>
+        <p className="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+          Access to administrator management and role assignment is restricted to Super Administrators only. Your current role does not have permission to view or manage administrators.
+        </p>
+        <Link
+          href="/"
+          className="mt-6 inline-flex h-9 items-center justify-center rounded-lg bg-[#0078D4] px-4 text-xs font-medium text-white shadow hover:bg-[#106EBE] transition-colors"
+        >
+          Return to Overview
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -110,7 +110,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       ref={ref}
       className={cn(
         "h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600",
-        "transition-colors focus:border-[#0078D4] dark:focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-[#0078D4]/20 dark:focus:ring-blue-500/30",
+        "transition-colors duration-300 focus:border-[#0078D4] dark:focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-[#0078D4]/20 dark:focus:ring-blue-500/30",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
@@ -128,7 +128,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
       ref={ref}
       className={cn(
         "w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600",
-        "transition-colors focus:border-[#0078D4] dark:focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-[#0078D4]/20 dark:focus:ring-blue-500/30",
+        "transition-colors duration-300 focus:border-[#0078D4] dark:focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-[#0078D4]/20 dark:focus:ring-blue-500/30",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}

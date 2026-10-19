@@ -23,6 +23,7 @@ import {
 } from "@/lib/admins";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format";
+import { authenticatedFetch } from "@/lib/auth-client";
 
 interface EditAdminModalProps {
   admin: AdminRecord | null;
@@ -80,7 +81,7 @@ function EditAdminDialogContent({
 
     setLoading(true);
     try {
-      const res = await fetch("/api/admin-roles", {
+      const res = await authenticatedFetch("/api/admin-roles", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ function EditAdminDialogContent({
 
     setLoading(true);
     try {
-      const res = await fetch("/api/admin-roles", {
+      const res = await authenticatedFetch("/api/admin-roles", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: admin.userId }),

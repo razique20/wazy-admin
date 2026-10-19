@@ -53,7 +53,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Storage unavailable
     }
-    applyThemeClass(newTheme);
+
+    if (
+      typeof document !== "undefined" &&
+      "startViewTransition" in document &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      (document as unknown as { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+        applyThemeClass(newTheme);
+      });
+    } else {
+      applyThemeClass(newTheme);
+    }
   };
 
   const toggleTheme = () => {

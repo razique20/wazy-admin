@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey, SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 import { APP_DATA_TABLES } from "@/lib/purge";
 import { writeAuditLog } from "@/lib/audit";
+import { verifyAdminRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,11 @@ interface PurgeAllStatus {
 }
 
 export async function POST(request: Request) {
+  const auth = await verifyAdminRequest(request, "super_admin");
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   if (!hasServiceRoleKey()) {
     return NextResponse.json<PurgeAllResponse>(
       { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY is not configured — data wipe is disabled." },

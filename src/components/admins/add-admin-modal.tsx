@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { ADMIN_ROLE_META, type AdminRole } from "@/lib/admins";
 import { cn } from "@/lib/cn";
+import { authenticatedFetch } from "@/lib/auth-client";
 
 interface AddAdminModalProps {
   open: boolean;
@@ -46,7 +47,7 @@ export function AddAdminModal({ open, onClose, onSuccess, authUsers }: AddAdminM
 
     setLoading(true);
     try {
-      const res = await fetch("/api/admin-roles", {
+      const res = await authenticatedFetch("/api/admin-roles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

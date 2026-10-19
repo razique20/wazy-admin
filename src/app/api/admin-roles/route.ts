@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 import { writeAuditLog } from "@/lib/audit";
+import { verifyAdminRequest } from "@/lib/server-auth";
 import {
   toAdminRole,
   canDemoteOrDeactivateAdmin,
@@ -24,7 +25,12 @@ interface AdminRolesApiResponse {
  * GET /api/admin-roles
  * Lists all assigned administrator roles merged with their auth.users metadata.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const auth = await verifyAdminRequest(req, "super_admin");
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   if (!hasServiceRoleKey()) {
     const body: AdminRolesApiResponse = {
       configured: false,
@@ -125,6 +131,11 @@ export async function GET() {
  * Body: { userId?: string, email?: string, role: "super_admin" | "admin", displayName?: string }
  */
 export async function POST(req: Request) {
+  const auth = await verifyAdminRequest(req, "super_admin");
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   if (!hasServiceRoleKey()) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 503 });
   }
@@ -223,6 +234,11 @@ export async function POST(req: Request) {
  * Body: { userId: string, role?: "super_admin" | "admin", isActive?: boolean, displayName?: string }
  */
 export async function PATCH(req: Request) {
+  const auth = await verifyAdminRequest(req, "super_admin");
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   if (!hasServiceRoleKey()) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 503 });
   }
@@ -335,7 +351,7 @@ export async function PATCH(req: Request) {
       old: { role: currentAdmin.role, isActive: currentAdmin.is_active },
       new: updates,
     },
-    performedBy: "admin-console",
+    performedBy: auth.admin.email || "super_admin",
   });
 
   return NextResponse.json({ success: true, admin: updated });
@@ -347,6 +363,11 @@ export async function PATCH(req: Request) {
  * Body: { userId: string }
  */
 export async function DELETE(req: Request) {
+  const auth = await verifyAdminRequest(req, "super_admin");
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   if (!hasServiceRoleKey()) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 503 });
   }
@@ -415,7 +436,7 @@ export async function DELETE(req: Request) {
       revokedRole: currentAdmin.role,
       revokedEmail: currentAdmin.email,
     },
-    performedBy: "admin-console",
+    performedBy: auth.admin.email || "super_admin",
   });
 
   return NextResponse.json({ success: true, revokedUserId: userId });

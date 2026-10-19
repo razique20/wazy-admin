@@ -44,7 +44,7 @@ export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) 
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode (Azure)" : "Switch to dark mode"}
       className={cn(
-        "group relative inline-flex h-8 items-center justify-center gap-2 rounded-lg border px-2.5 text-xs font-medium transition-all duration-200",
+        "group relative inline-flex h-8 items-center justify-center gap-2 rounded-lg border px-2.5 text-xs font-medium transition-all duration-300 ease-in-out select-none active:scale-95",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4]/60",
         // Light mode styling (Azure style: crisp white with slate border and subtle hover)
         "border-zinc-300 bg-white text-zinc-700 shadow-sm hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900",
@@ -53,17 +53,30 @@ export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) 
         className,
       )}
     >
-      <div className="relative flex h-4 w-4 items-center justify-center">
-        {isDark ? (
-          <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 hover:rotate-45" />
-        ) : (
-          <Moon className="h-4 w-4 text-[#0078D4] transition-transform duration-300 hover:-rotate-12" />
-        )}
+      <div className="relative flex h-4 w-4 items-center justify-center overflow-hidden">
+        {/* Sun Icon (visible in dark mode) */}
+        <Sun
+          className={cn(
+            "h-4 w-4 text-amber-400 transition-all duration-300 ease-in-out absolute",
+            isDark
+              ? "rotate-0 scale-100 opacity-100"
+              : "rotate-90 scale-0 opacity-0 pointer-events-none",
+          )}
+        />
+        {/* Moon Icon (visible in light mode) */}
+        <Moon
+          className={cn(
+            "h-4 w-4 text-[#0078D4] transition-all duration-300 ease-in-out absolute",
+            isDark
+              ? "-rotate-90 scale-0 opacity-0 pointer-events-none"
+              : "rotate-0 scale-100 opacity-100",
+          )}
+        />
       </div>
       {showLabel ? (
-        <span className="truncate">{isDark ? "Light mode" : "Dark mode"}</span>
+        <span className="truncate transition-colors duration-300">{isDark ? "Light mode" : "Dark mode"}</span>
       ) : (
-        <span className="hidden text-xs sm:inline-block">
+        <span className="hidden text-xs sm:inline-block transition-colors duration-300">
           {isDark ? "Light" : "Dark"}
         </span>
       )}

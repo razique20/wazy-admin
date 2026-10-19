@@ -121,14 +121,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 transition-colors">
+    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 transition-colors duration-300 ease-in-out">
       {/* Top Bar with Theme Toggle */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md transition-colors duration-300 ease-in-out">
         <div className="flex items-center gap-3">
           <FinavigLogo width={28} height={28} />
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">finavig</span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#0078D4]/10 text-[#0078D4] dark:text-blue-400 border border-[#0078D4]/20">
+            <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white transition-colors duration-300">finavig</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#0078D4]/10 text-[#0078D4] dark:text-blue-400 border border-[#0078D4]/20 transition-colors duration-300">
               Admin Portal
             </span>
           </div>
@@ -140,23 +140,23 @@ export default function LoginPage() {
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-md">
           {/* Card */}
-          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 sm:p-8 shadow-xl dark:shadow-2xl dark:shadow-black/70">
+          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 sm:p-8 shadow-xl dark:shadow-2xl dark:shadow-black/70 transition-all duration-300 ease-in-out">
             {/* Header */}
             <div className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0078D4]/10 text-[#0078D4] dark:text-blue-400">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0078D4]/10 text-[#0078D4] dark:text-blue-400 transition-colors duration-300">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors duration-300">
                 Administrator Sign In
               </h1>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 transition-colors duration-300">
                 Enter your administrative credentials to manage finavig operations, users, and platform data.
               </p>
             </div>
 
             {/* Error Banner */}
             {error ? (
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400">
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400 transition-colors duration-300">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1 leading-relaxed">{error}</div>
               </div>
@@ -164,7 +164,7 @@ export default function LoginPage() {
 
             {/* Magic Link Sent Notice */}
             {magicLinkSent ? (
-              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-2">
+              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-2 transition-colors duration-300">
                 <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-500" />
                 <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                   Check your inbox
@@ -185,11 +185,11 @@ export default function LoginPage() {
               <form onSubmit={mode === "password" ? handlePasswordLogin : handleMagicLinkLogin} className="mt-6 space-y-4">
                 {/* Email Field */}
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 transition-colors duration-300">
                     Admin Email
                   </label>
                   <div className="relative mt-1.5">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 transition-colors duration-300" />
                     <Input
                       type="email"
                       required
@@ -207,19 +207,19 @@ export default function LoginPage() {
                 {mode === "password" ? (
                   <div>
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 transition-colors duration-300">
                         Password
                       </label>
                       <button
                         type="button"
                         onClick={() => setMode("magic_link")}
-                        className="text-xs text-[#0078D4] dark:text-blue-400 hover:underline"
+                        className="text-xs text-[#0078D4] dark:text-blue-400 hover:underline transition-colors duration-300"
                       >
                         Use magic link instead
                       </button>
                     </div>
                     <div className="relative mt-1.5">
-                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 transition-colors duration-300" />
                       <Input
                         type={showPassword ? "text" : "password"}
                         required
@@ -233,7 +233,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors duration-300"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -244,7 +244,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setMode("password")}
-                      className="text-xs text-[#0078D4] dark:text-blue-400 hover:underline"
+                      className="text-xs text-[#0078D4] dark:text-blue-400 hover:underline transition-colors duration-300"
                     >
                       Use password sign in instead
                     </button>
@@ -256,7 +256,7 @@ export default function LoginPage() {
                   variant="primary"
                   type="submit"
                   disabled={loading}
-                  className="w-full h-10 mt-2 text-sm font-semibold justify-center shadow-md shadow-[#0078D4]/20"
+                  className="w-full h-10 mt-2 text-sm font-semibold justify-center shadow-md shadow-[#0078D4]/20 transition-all duration-300"
                 >
                   {loading ? (
                     <>
@@ -279,8 +279,8 @@ export default function LoginPage() {
             )}
 
             {/* Security Notice */}
-            <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 text-center transition-colors duration-300">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 transition-colors duration-300">
                 <Lock className="h-3 w-3 text-emerald-500" />
                 <span>Protected by Supabase Auth &amp; Two-Tier RBAC</span>
               </div>
@@ -290,7 +290,7 @@ export default function LoginPage() {
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 text-center text-xs text-zinc-500 dark:text-zinc-500 border-t border-zinc-200/80 dark:border-zinc-800/80">
+      <footer className="px-6 py-4 text-center text-xs text-zinc-500 dark:text-zinc-500 border-t border-zinc-200/80 dark:border-zinc-800/80 transition-colors duration-300 ease-in-out">
         finavig Financial Intelligence &amp; Document Expiry Admin Platform · Authorized Personnel Only
       </footer>
     </div>

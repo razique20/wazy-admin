@@ -6,16 +6,18 @@
  * removed rows. Tables that don't exist in a given project are skipped
  * with a warning instead of failing the whole wipe.
  */
-export const APP_DATA_TABLES: { table: string; pk: string }[] = [
-  { table: "reminders", pk: "id" },
-  { table: "finance_transactions", pk: "id" },
-  { table: "category_budgets", pk: "id" },
-  { table: "savings_envelopes", pk: "id" },
-  { table: "recurring_transactions", pk: "id" },
-  { table: "ai_quota_usage", pk: "id" },
-  { table: "user_tier_audit", pk: "id" },
-  { table: "user_tiers", pk: "user_id" },
-  { table: "custom_document_types", pk: "id" },
-  { table: "documents", pk: "id" },
-  { table: "collections", pk: "id" },
+export const APP_DATA_TABLES: { table: string; pk: string; column?: string }[] = [
+  { table: "reminders", pk: "id", column: "document_id" },
+  { table: "error_reports", pk: "id", column: "user_id" },
+  { table: "finance_transactions", pk: "id", column: "owner_id" },
+  { table: "category_budgets", pk: "id", column: "owner_id" },
+  { table: "savings_envelopes", pk: "id", column: "owner_id" },
+  { table: "recurring_transactions", pk: "id", column: "owner_id" },
+  { table: "ai_quota_usage", pk: "id", column: "user_id" },
+  { table: "user_tier_audit", pk: "id", column: "user_id" },
+  { table: "user_tiers", pk: "user_id", column: "user_id" },
+  { table: "custom_document_types", pk: "id", column: "owner_id" },
+  { table: "documents", pk: "id", column: "owner_id" },
+  { table: "collections", pk: "id", column: "owner_id" },
+  { table: "support_requests", pk: "id", column: "user_id" },
 ];

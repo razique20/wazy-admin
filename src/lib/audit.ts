@@ -19,6 +19,8 @@ export const AUDIT_ACTIONS = [
   "row.delete",
   "user.data_purge",
   "data.wipe_all",
+  "data.selective_purge",
+  "data.wipe_selected",
   "admin.grant",
   "admin.revoke",
   "admin.update_role",

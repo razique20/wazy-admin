@@ -17,6 +17,8 @@ const DIRECT_PG_TABLES: Record<string, string> = {
   envelopes: "savings_envelopes",
   recurring: "recurring_transactions",
   supportRequests: "support_requests",
+  errorReports: "error_reports",
+  userTiers: "user_tiers",
   aiQuotaUsage: "ai_quota_usage",
   appVersions: "app_versions",
   appUsageStats: "app_usage_stats",
@@ -76,7 +78,9 @@ const FETCH_SPEC: {
   { key: "recurring", table: "recurring_transactions", order: "start_date", asc: false },
   { key: "supportRequests", table: "support_requests", order: "created_at", asc: false },
   { key: "aiQuotaUsage", table: "ai_quota_usage", order: "updated_at", asc: false },
-  { key: "appVersions", table: "app_versions", order: "platform", asc: true },
+  { key: "userTiers", table: "user_tiers", order: "updated_at", asc: false },
+    { key: "errorReports", table: "error_reports", order: "created_at", asc: false },
+    { key: "appVersions", table: "app_versions", order: "platform", asc: true },
   { key: "appUsageStats", table: "app_usage_stats", order: "last_app_open", asc: false },
 ];
 

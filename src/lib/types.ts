@@ -219,6 +219,8 @@ export interface WazyDataBundle {
   envelopes: SavingsEnvelope[];
   recurring: RecurringTransaction[];
   supportRequests: SupportRequest[];
+  errorReports: ErrorReport[];
+  userTiers: UserTierRow[];
   aiQuotaUsage: AiQuotaUsage[];
   appVersions: AppVersion[];
   appUsageStats: AppUsageStats[];

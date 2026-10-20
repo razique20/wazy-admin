@@ -48,7 +48,8 @@ alter table public.admin_audit_log
     'tier.grant', 'quota.reset', 'version.publish',
     'reminder.mark_sent', 'reminder.cleanup',
     'row.insert', 'row.update', 'row.delete',
-    'user.data_purge', 'data.wipe_all'
+    'user.data_purge', 'data.wipe_all',
+    'data.selective_purge', 'data.wipe_selected', 'admin.grant', 'admin.revoke', 'admin.update_role', 'admin.toggle_status'
   ));
 
 -- 3) Verify: should print the new constraint definition.

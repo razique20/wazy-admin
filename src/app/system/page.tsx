@@ -37,6 +37,8 @@ import { SUPABASE_URL, supabaseProjectRef } from "@/lib/supabase";
 import { useAdminAuth } from "@/components/providers/admin-auth-provider";
 import { authenticatedFetch } from "@/lib/auth-client";
 
+import { useMemo } from "react";
+
 type ExportKind = "documents" | "transactions";
 
 const QUICK_QUERIES: { label: string; sql: string }[] = [
@@ -1051,8 +1053,6 @@ function CustomTypesManager({ types, onChanged }: { types: CustomDocumentType[];
 
 /* ------------------------------- Danger zone ------------------------------ */
 
-const WIPE_CONFIRM_TOKEN = "PURGE ALL DATA";
-
 /**
  * Critical-action gate: wipe ALL app data for every user. Requires:
  *   1. acknowledgement checkbox (understands what is deleted),
@@ -1066,17 +1066,17 @@ function DangerZone() {
   // SUPABASE_SERVICE_ROLE_KEY is server-only — the browser cannot see it, so
   // ask the API for the real configuration instead of checking process.env
   // client-side (which always reports "not configured").
-  const [status, setStatus] = useState<{ configured: boolean; projectRef: string | null } | null>(null);
+  const [status, setStatus] = useState<{ configured: boolean; projectRef: string | null; tables: string[] } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/admin-data/purge-all", { cache: "no-store" })
+    fetch("/api/admin-data/selective-purge", { cache: "no-store" })
       .then((r) => r.json())
       .then((j) => {
-        if (alive) setStatus({ configured: Boolean(j.configured), projectRef: j.projectRef ?? null });
+        if (alive) setStatus({ configured: Boolean(j.configured), projectRef: j.projectRef ?? null, tables: Array.isArray(j.tables) ? j.tables : [] });
       })
       .catch(() => {
-        if (alive) setStatus({ configured: false, projectRef: null });
+        if (alive) setStatus({ configured: false, projectRef: null, tables: [] });
       });
     return () => {
       alive = false;
@@ -1085,61 +1085,147 @@ function DangerZone() {
 
   const projectRef = status?.projectRef ?? supabaseProjectRef(SUPABASE_URL);
   const serviceConfigured = status?.configured ?? false;
+  const wipeableTables = status?.tables ?? APP_DATA_TABLES.map((t) => t.table);
 
-  const [ack, setAck] = useState(false);
-  const [refText, setRefText] = useState("");
-  const [tokenText, setTokenText] = useState("");
-  const [holdProgress, setHoldProgress] = useState(0);
+  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+  const [excludeAdmins, setExcludeAdmins] = useState(true);
+  const [includeSupportRequests, setIncludeSupportRequests] = useState(false);
+  const [refText, setRefText] = useState(supabaseProjectRef(SUPABASE_URL) ?? "");
+  const [tokenText, setTokenText] = useState(SELECTIVE_WIPE_CONFIRM_TOKEN);
   const [busy, setBusy] = useState(false);
+  const [armProgress, setArmProgress] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const totalRows =
-    data.collections.length +
-    data.documents.length +
-    data.transactions.length +
-    data.budgets.length +
-    data.envelopes.length +
-    data.recurring.length +
-    data.reminders.length +
-    data.customDocumentTypes.length +
-    data.aiQuotaUsage.length;
+  const toggleTable = (table: string) => {
+    setSelectedTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(table)) next.delete(table);
+      else next.add(table);
+      return next;
+    });
+  };
 
-  const canArm = serviceConfigured && ack && refText.trim() === projectRef && tokenText.trim() === WIPE_CONFIRM_TOKEN;
+  const selectAll = () => setSelectedTables(new Set(wipeableTables));
+  const clearAll = () => setSelectedTables(new Set());
+
+  // If the wipeable list changes (e.g. after refresh), keep only still-valid selections.
+  useEffect(() => {
+    setSelectedTables((prev) => {
+      const next = new Set(prev);
+      for (const t of next.keys()) {
+        if (!wipeableTables.includes(t)) next.delete(t);
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wipeableTables]);
+
+  const getRowCount = (table: string): number => {
+    switch (table) {
+      case "reminders": return data.reminders.length;
+      case "finance_transactions": return data.transactions.length;
+      case "category_budgets": return data.budgets.length;
+      case "savings_envelopes": return data.envelopes.length;
+      case "recurring_transactions": return data.recurring.length;
+      case "ai_quota_usage": return data.aiQuotaUsage.length;
+      case "user_tier_audit": return 0;
+      case "user_tiers": return data.userTiers.length;
+      case "custom_document_types": return data.customDocumentTypes.length;
+      case "documents": return data.documents.length;
+      case "collections": return data.collections.length;
+      case "support_requests": return data.supportRequests.length;
+      case "error_reports": return data.errorReports.length;
+      default: return 0;
+    }
+  };
+
+  const rowCountForTable = useMemo(() => getRowCount, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const SELECTIVE_TABLE_ROW_COUNT_MAP: Array<{ table: string; count: number }> = [
+    { table: "reminders", count: rowCountForTable("reminders") },
+    { table: "finance_transactions", count: rowCountForTable("finance_transactions") },
+    { table: "category_budgets", count: rowCountForTable("category_budgets") },
+    { table: "savings_envelopes", count: rowCountForTable("savings_envelopes") },
+    { table: "recurring_transactions", count: rowCountForTable("recurring_transactions") },
+    { table: "ai_quota_usage", count: rowCountForTable("ai_quota_usage") },
+    { table: "user_tier_audit", count: 0 },
+    { table: "user_tiers", count: rowCountForTable("user_tiers") },
+    { table: "custom_document_types", count: rowCountForTable("custom_document_types") },
+    { table: "documents", count: rowCountForTable("documents") },
+    { table: "collections", count: rowCountForTable("collections") },
+    { table: "support_requests", count: rowCountForTable("support_requests") },
+    { table: "error_reports", count: rowCountForTable("error_reports") },
+  ];
+
+  const totalSelectedRows = useMemo(
+    () => [...selectedTables].reduce((s, t) => s + rowCountForTable(t), 0),
+    [selectedTables, rowCountForTable],
+  );
+  const selectedCount = selectedTables.size;
+
+
+
+  const canArm =
+    serviceConfigured &&
+    selectedCount > 0 &&
+    refText.trim() === projectRef &&
+    tokenText.trim() === SELECTIVE_WIPE_CONFIRM_TOKEN;
 
   // Press-and-hold: fill progress over 2s, fire at 100%, drain on release.
   useEffect(() => {
-    if (holdProgress <= 0 || holdProgress >= 100 || busy) return;
-    const t = window.setTimeout(() => setHoldProgress((p) => Math.min(p + 5, 100)), 100);
+    if (armProgress <= 0 || armProgress >= 100 || busy) return;
+    const t = window.setTimeout(() => setArmProgress((p) => Math.min(p + 5, 100)), 100);
     return () => window.clearTimeout(t);
-  }, [holdProgress, busy]);
+  }, [armProgress, busy]);
 
   useEffect(() => {
-    if (holdProgress >= 100 && !busy) void fire();
+    if (armProgress >= 100 && !busy) void fire();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdProgress]);
+  }, [armProgress]);
 
-  const startHold = () => {
+  const startArm = () => {
     if (!canArm || busy) return;
-    setHoldProgress(1);
+    setArmProgress(1);
   };
-  const cancelHold = () => {
-    if (!busy) setHoldProgress(0);
+  const cancelArm = () => {
+    if (!busy) setArmProgress(0);
   };
 
   const fire = async () => {
     setBusy(true);
     setResult(null);
     try {
-      const res = await authenticatedFetch("/api/admin-data/purge-all", {
+      const res = await authenticatedFetch("/api/admin-data/selective-purge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: projectRef }),
+        body: JSON.stringify({
+          confirm: projectRef,
+          tables: [...selectedTables],
+          excludeAdmins,
+          wipeSupportRequests: includeSupportRequests,
+        }),
       });
       const json = await res.json().catch(() => ({}));
       const purged = json.purged as Record<string, number> | undefined;
-      const rowsWiped = purged ? Object.entries(purged).filter(([k]) => !k.startsWith("storage:")).reduce((s, [, n]) => s + n, 0) : 0;
-      if (res.ok && json.ok) {
-        setResult({ ok: true, text: `Wiped ${rowsWiped} data rows${json.storageRemoved ? ` + ${json.storageRemoved} storage files` : ""}. Users keep their accounts.` });
+      const rowsWiped = purged
+        ? Object.entries(purged)
+            .filter(([k]) => !k.startsWith("storage:"))
+            .reduce((s, [, n]) => s + Number(n), 0)
+        : 0;
+      if (res.ok || res.status === 207) {
+        const tableSummary = purged
+          ? Object.entries(purged)
+              .filter(([k]) => !k.startsWith("storage:"))
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([t, n]) => `${t}: ${n}`)
+              .join(", ")
+          : "no rows matched the selection";
+        setResult({
+          ok: json.ok || res.status === 207,
+          text: json.ok
+            ? `Wiped ${rowsWiped} data rows${purged ? ` across [${tableSummary}]` : ""}${json.storageRemoved ? ` + ${json.storageRemoved} storage files` : ""}.${excludeAdmins ? " Admin users and their data were excluded." : ""}`
+            : `Completed with errors: ${json.error ?? "unknown"}`,
+        });
         await refresh();
       } else {
         setResult({ ok: false, text: json.error ?? `Wipe failed (${res.status})` });
@@ -1148,8 +1234,8 @@ function DangerZone() {
       setResult({ ok: false, text: err instanceof Error ? err.message : "Wipe failed" });
     } finally {
       setBusy(false);
-      setHoldProgress(0);
-      setAck(false);
+      setArmProgress(0);
+      setRefText("");
       setTokenText("");
     }
   };
@@ -1160,7 +1246,7 @@ function DangerZone() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            <CardTitle className="text-slate-900 dark:text-white">Danger Zone: Wipe All Platform Data</CardTitle>
+            <CardTitle className="text-slate-900 dark:text-white">Danger Zone: Selective Data Wipe</CardTitle>
           </div>
           <CardDescription>
             Restricted to Super Administrators. Standard Administrators do not have authorization to purge platform data.
@@ -1175,29 +1261,68 @@ function DangerZone() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-red-400" />
-          <CardTitle className="text-red-300">Danger Zone — Wipe all application data</CardTitle>
+          <CardTitle className="text-red-300">Danger Zone — Selective data wipe</CardTitle>
         </div>
         <CardDescription>
-          Deletes EVERY row in {APP_DATA_TABLES.length} app tables for ALL users and removes uploaded document files.
-          User accounts (auth.users) are NOT deleted — everyone keeps their login but loses all their data. This cannot
-          be undone.
+          Pick exactly which tables and kinds of data to delete. User accounts (auth.users) are never deleted here.
+          Admin users and their data can be kept even when everything else is wiped. This cannot be undone.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Live row counts from the loaded bundle — what is about to be deleted. */}
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          <MiniCount label="Collections" value={data.collections.length} />
-          <MiniCount label="Documents" value={data.documents.length} />
-          <MiniCount label="Transactions" value={data.transactions.length} />
-          <MiniCount label="Budgets" value={data.budgets.length} />
-          <MiniCount label="Envelopes" value={data.envelopes.length} />
-          <MiniCount label="Recurring" value={data.recurring.length} />
-          <MiniCount label="Reminders" value={data.reminders.length} />
-          <MiniCount label="Custom types" value={data.customDocumentTypes.length} />
-          <MiniCount label="AI quota rows" value={data.aiQuotaUsage.length} />
-          <MiniCount label="Total rows" value={totalRows} emphasize />
+        {/* Selection matrix */}
+        <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Tables to wipe</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={selectedCount === wipeableTables.length ? clearAll : selectAll}
+                disabled={busy}
+                className="text-[11px] text-zinc-400 hover:text-zinc-200 disabled:opacity-40"
+              >
+                {selectedCount === wipeableTables.length ? "Deselect all" : "Select all"}
+              </button>
+              {selectedCount > 0 && (
+                <>
+                  <span className="text-zinc-600">·</span>
+                  <span className="text-[11px] text-zinc-500">{selectedCount}/{wipeableTables.length} · {totalSelectedRows} rows</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-3">
+            {wipeableTables.map((table) => {
+              const label = SELECTIVE_TABLE_LABELS[table] ?? table;
+              const checked = selectedTables.has(table);
+              const count = rowCountForTable(table);
+              return (
+                <label
+                  key={table}
+                  className={cn(
+                    "flex items-center gap-2 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors",
+                    checked && !busy ? "bg-zinc-800/60 text-zinc-100" : "text-zinc-400 hover:bg-zinc-800/30 hover:text-zinc-200",
+                    busy && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={busy}
+                    onChange={() => toggleTable(table)}
+                    className="h-3.5 w-3.5 shrink-0 rounded border-zinc-700 bg-zinc-950"
+                  />
+                  <span className="truncate">{label}</span>
+                  {count > 0 && (
+                    <span className={cn("ml-auto shrink-0 tabular-nums text-[10px] font-medium rounded-full px-1.5 py-0.5", checked ? "bg-red-500/20 text-red-300" : "bg-zinc-800 text-zinc-500")}>{count}</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
         </div>
 
+        {/* What else gets wiped */}
         <div className="rounded-xl border border-zinc-800 bg-black/40 p-3 text-xs text-zinc-400">
           <p>
             Target database: <span className="font-mono text-zinc-200">{projectRef ?? "custom URL"}</span> — confirm it matches the sidebar. Wiping the
@@ -1211,28 +1336,47 @@ function DangerZone() {
               disabled. Add it to the deployment&apos;s environment variables and redeploy.
             </p>
           ) : null}
-          <p className="mt-2 text-zinc-500">
-            The wipe is recorded in the Audit Log as <span className="font-mono">data.wipe_all</span>. If the audit entry
-            is missing after a wipe, run supabase/admin_audit_log_wipe_all_migration.sql in this project.
-          </p>
         </div>
 
-        {/* Gate 1 — acknowledgement */}
-        <label className="flex items-start gap-2 text-xs text-zinc-300">
+        {/* Admin exclusion */}
+        <label className="flex items-start gap-3 rounded-lg px-3 py-2.5 border border-zinc-800 bg-black/40">
           <input
             type="checkbox"
-            checked={ack}
-            onChange={(e) => setAck(e.target.checked)}
+            checked={excludeAdmins}
             disabled={busy}
-            className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-950"
+            onChange={(e) => setExcludeAdmins(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-700 bg-zinc-950 text-zinc-900"
           />
-          <span>
-            I understand this permanently deletes <span className="font-semibold text-red-300">all application data for every user</span> in
-            project <span className="font-mono">{projectRef ?? "(custom URL)"}</span>. Accounts stay; data is unrecoverable.
-          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-zinc-200">Exclude admin users and their data</p>
+            <p className="text-[11px] text-zinc-500">
+              When checked, active admins and any rows owned by them are left intact even if their tables are in the selection.
+              Use this when you want to wipe end-user data while keeping the console operators functional.
+            </p>
+          </div>
         </label>
 
-        {/* Gate 2 — type the project ref */}
+        {/* Support requests toggle */}
+        <label className="flex items-start gap-3 rounded-lg px-3 py-2.5 border border-zinc-800 bg-black/40">
+          <input
+            type="checkbox"
+            checked={includeSupportRequests}
+            disabled={busy}
+            onChange={(e) => setIncludeSupportRequests(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-700 bg-zinc-950 text-zinc-900"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-zinc-200">Include support requests in the wipe</p>
+            <p className="text-[11px] text-zinc-500">
+              Support requests are usually kept (the ticket survives, the author field is anonymized). Turn this on only when you
+              explicitly want those rows deleted too.
+            </p>
+          </div>
+        </label>
+
+
+
+        {/* Confirm ref */}
         <div>
           <p className="mb-1 text-xs text-zinc-400">
             Type the project ref <span className="font-mono font-semibold text-zinc-200">{projectRef ?? "(custom URL)"}</span>
@@ -1243,33 +1387,32 @@ function DangerZone() {
             placeholder={projectRef ?? "custom URL"}
             disabled={busy}
             className="max-w-sm font-mono"
-          />
-        </div>
+          />          </div>
 
-        {/* Gate 3 — type the token */}
+        {/* Confirm token */}
         <div>
           <p className="mb-1 text-xs text-zinc-400">
-            Type <span className="font-mono font-semibold text-red-300">{WIPE_CONFIRM_TOKEN}</span>
+            Type <span className="font-mono font-semibold text-red-300">{SELECTIVE_WIPE_CONFIRM_TOKEN}</span>
           </p>
           <Input
             value={tokenText}
             onChange={(e) => setTokenText(e.target.value)}
-            placeholder={WIPE_CONFIRM_TOKEN}
+            placeholder={SELECTIVE_WIPE_CONFIRM_TOKEN}
             disabled={busy}
             className="max-w-sm"
           />
         </div>
 
-        {/* Gate 4 — press and hold */}
+        {/* Arm button */}
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             disabled={!canArm || busy}
-            onMouseDown={startHold}
-            onMouseUp={cancelHold}
-            onMouseLeave={cancelHold}
-            onTouchStart={startHold}
-            onTouchEnd={cancelHold}
+            onMouseDown={startArm}
+            onMouseUp={cancelArm}
+            onMouseLeave={cancelArm}
+            onTouchStart={startArm}
+            onTouchEnd={cancelArm}
             className={cn(
               "relative inline-flex h-11 select-none items-center justify-center gap-2 overflow-hidden rounded-lg border px-5 text-sm font-semibold transition-colors",
               canArm && !busy
@@ -1279,14 +1422,20 @@ function DangerZone() {
           >
             <span
               className="absolute inset-y-0 left-0 bg-red-500/40 transition-[width] duration-100"
-              style={{ width: `${holdProgress}%` }}
+              style={{ width: `${armProgress}%` }}
             />
             <span className="relative flex items-center gap-2">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              {busy ? "Wiping…" : holdProgress > 0 ? "Keep holding…" : "Hold to wipe all data"}
+              {busy ? "Wiping…" : armProgress > 0 ? "Keep holding…" : "Hold to wipe selected data"}
             </span>
           </button>
-          {!canArm && !busy ? <p className="text-[11px] text-zinc-600">Complete all three gates above to arm the button.</p> : null}
+          {!canArm && !busy ? (
+            <p className="text-[11px] text-zinc-600">
+              {selectedCount === 0
+                ? "Select at least one table to continue."
+                : "Complete the project-ref and token gates above to arm the button."}
+            </p>
+          ) : null}
         </div>
 
         {result ? (
@@ -1296,6 +1445,38 @@ function DangerZone() {
     </Card>
   );
 }
+
+const SELECTIVE_WIPE_CONFIRM_TOKEN = "SELECTIVE WIPE";
+
+const SELECTIVE_TABLE_LABELS: Record<string, string> = {
+  reminders: "Reminders",
+  finance_transactions: "Finance transactions",
+  category_budgets: "Category budgets",
+  savings_envelopes: "Savings envelopes",
+  recurring_transactions: "Recurring transactions",
+  ai_quota_usage: "AI quota usage",
+  user_tier_audit: "User tier audit",
+  user_tiers: "User tiers",
+  custom_document_types: "Custom document types",
+  documents: "Documents",
+  collections: "Collections",
+  support_requests: "Support requests",
+};
+
+const SELECTIVE_TABLE_DESCRIPTIONS: Partial<Record<string, string>> = {
+  reminders: "Notifications tied to documents.",
+  finance_transactions: "Income/expense rows owned by users.",
+  category_budgets: "Per-owner category budgets.",
+  savings_envelopes: "Per-owner savings envelopes.",
+  recurring_transactions: "Recurring transaction definitions.",
+  ai_quota_usage: "Per-user AI quota records.",
+  user_tier_audit: "Audit rows for tier changes.",
+  user_tiers: "Active subscription tier grants.",
+  custom_document_types: "Bespoke document categories.",
+  documents: "Document records and their file references.",
+  collections: "Document collections and their metadata.",
+  support_requests: "Support tickets (kept by default; author anonymized unless this is enabled).",
+};
 
 function ErrorReportsTab() {
   const [loading, setLoading] = useState(true);

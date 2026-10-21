@@ -35,23 +35,21 @@ async function fetchAllDirectPg(): Promise<{
       const data: Record<string, unknown[]> = {};
       const errors: Record<string, string> = {};
       let allOk = true;
-      await Promise.all(
-        Object.entries(DIRECT_PG_TABLES).map(async ([key, table]) => {
-          const spec = FETCH_SPEC.find((s) => s.key === key);
-          const order = spec?.order ?? "created_at";
-          const asc = spec?.asc ?? false;
-          try {
-            const { rows } = await client.query(
-              `select * from public."${table}" order by "${order}" ${asc ? "asc" : "desc"} limit 5000`,
-            );
-            data[key] = rows;
-          } catch (err) {
-            errors[table] = err instanceof Error ? err.message : "direct PG read failed";
-            data[key] = [];
-            allOk = false;
-          }
-        }),
-      );
+      for (const [key, table] of Object.entries(DIRECT_PG_TABLES)) {
+        const spec = FETCH_SPEC.find((s) => s.key === key);
+        const order = spec?.order ?? "created_at";
+        const asc = spec?.asc ?? false;
+        try {
+          const { rows } = await client.query(
+            `select * from public."${table}" order by "${order}" ${asc ? "asc" : "desc"} limit 5000`,
+          );
+          data[key] = rows;
+        } catch (err) {
+          errors[table] = err instanceof Error ? err.message : "direct PG read failed";
+          data[key] = [];
+          allOk = false;
+        }
+      }
       return { data, errors, allOk };
     });
   } catch (err) {
@@ -61,6 +59,9 @@ async function fetchAllDirectPg(): Promise<{
 }
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate" } as const;
 
 const FETCH_SPEC: {
   key: string;
@@ -102,7 +103,7 @@ export async function GET() {
         source: "direct_pg",
         fetchedAt: new Date().toISOString(),
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: NO_STORE },
     );
   }
 
@@ -132,6 +133,6 @@ export async function GET() {
       source: directDbConfigured() ? "direct_pg" : hasServiceRoleKey() ? "service_role" : "anon",
       fetchedAt: new Date().toISOString(),
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: NO_STORE },
   );
 }

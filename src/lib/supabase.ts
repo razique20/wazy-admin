@@ -50,6 +50,13 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     autoRefreshToken: true,
   },
+  global: {
+    fetch: (url, options = {}) =>
+      fetch(url, {
+        ...options,
+        cache: "no-store",
+      }),
+  },
 });
 
 /**
@@ -68,6 +75,13 @@ export function createServiceRoleClient(): SupabaseClient {
   }
   return createClient(SUPABASE_URL, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (url, options = {}) =>
+        fetch(url, {
+          ...options,
+          cache: "no-store",
+        }),
+    },
   });
 }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export interface AdminAuditRow {
   id: number | string;
@@ -26,6 +27,8 @@ export interface AdminAuditResponse {
  * (service-role only — the table has no RLS policies on purpose).
  */
 export async function GET(request: Request) {
+  const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate" } as const;
+
   if (!hasServiceRoleKey()) {
     const body: AdminAuditResponse = {
       rows: [],
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
       message:
         "SUPABASE_SERVICE_ROLE_KEY is not set — the admin audit log (public.admin_audit_log) cannot be read.",
     };
-    return NextResponse.json(body);
+    return NextResponse.json(body, { headers: NO_STORE });
   }
 
   const url = new URL(request.url);
@@ -54,13 +57,13 @@ export async function GET(request: Request) {
     if (error) throw new Error(error.message);
 
     const body: AdminAuditResponse = { rows: (data ?? []) as AdminAuditRow[], source: "service_role" };
-    return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(body, { headers: NO_STORE });
   } catch (err) {
     const body: AdminAuditResponse = {
       rows: [],
       source: "error",
       message: err instanceof Error ? err.message : "Failed to read admin audit log",
     };
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json(body, { status: 500, headers: NO_STORE });
   }
 }

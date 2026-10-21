@@ -75,7 +75,7 @@ interface AuthUser {
 }
 
 export default function OverviewPage() {
-  const { data, loading, error } = useWazy();
+  const { data, loading, error, lastUpdated } = useWazy();
   const { currency: displayCurrency } = useDisplayCurrency();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [, setActiveUsers] = useState<AuthUser[]>([]);
@@ -87,8 +87,8 @@ export default function OverviewPage() {
     void (async () => {
       try {
         const [usersRes, tiersRes] = await Promise.all([
-          fetch("/api/admin-users", { cache: "no-store" }),
-          fetch("/api/user-tiers", { cache: "no-store" }),
+          fetch(`/api/admin-users?_t=${Date.now()}`, { cache: "no-store" }),
+          fetch(`/api/user-tiers?_t=${Date.now()}`, { cache: "no-store" }),
         ]);
         const usersJson = await usersRes.json().catch(() => ({}));
         const tiersJson = await tiersRes.json().catch(() => ({}));
@@ -113,7 +113,7 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [lastUpdated]);
 
   const moneyOpts = useMemo(
     () => ({

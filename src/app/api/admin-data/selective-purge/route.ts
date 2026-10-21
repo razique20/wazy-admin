@@ -18,6 +18,8 @@ interface SelectivePurgeRequest {
   excludeAdmins?: boolean;
   /** When true, support requests authored by the targeted owners are also deleted. */
   wipeSupportRequests?: boolean;
+  /** When true, non-admin accounts in auth.users are also deleted. */
+  wipeAuthUsers?: boolean;
   /** When provided, only wipe the listed owner ids across the selected tables. */
   ownerIds?: string[];
   /** Matches the active project ref — prevents a stray wipe. */
@@ -201,6 +203,35 @@ export async function POST(request: Request) {
       }
     }
 
+    // Optional: wipe matching auth.users accounts from Supabase Auth
+    if (body.wipeAuthUsers) {
+      try {
+        const { data: usersData, error: usersErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (usersErr) throw new Error(usersErr.message);
+
+        const adminSet = new Set(adminIdsToExclude);
+        const targetAuthUsers = (usersData.users ?? []).filter((u) => {
+          if (excludeAdmins && adminSet.has(u.id)) return false;
+          if (isOwnerScoped && !ownerIds.includes(u.id.toLowerCase())) return false;
+          return true;
+        });
+
+        let authPurgedCount = 0;
+        for (const u of targetAuthUsers) {
+          const { error: delErr } = await admin.auth.admin.deleteUser(u.id);
+          if (!delErr) authPurgedCount += 1;
+          else console.warn(`[selective-purge] failed to delete auth user ${u.id}: ${delErr.message}`);
+        }
+        if (authPurgedCount > 0) {
+          purged["auth_users"] = authPurgedCount;
+        }
+      } catch (authErr) {
+        const msg = authErr instanceof Error ? authErr.message : "failed to wipe auth users";
+        errors["auth_users"] = msg;
+        console.warn(`[selective-purge] auth_users: ${msg}`);
+      }
+    }
+
     // Storage files: best-effort. Only clean up document file paths when
     // documents or collections were part of the wipe.
     let storageRemoved = 0;
@@ -234,6 +265,7 @@ export async function POST(request: Request) {
         selectedTables: requestedTables,
         excludeAdmins,
         wipeSupportRequests: body.wipeSupportRequests,
+        wipeAuthUsers: Boolean(body.wipeAuthUsers),
         ownerScoped: isOwnerScoped,
         ownerCount: ownerIds.length,
         adminExcludedCount: adminIdsToExclude.length,

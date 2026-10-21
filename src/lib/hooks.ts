@@ -85,7 +85,7 @@ export function useWazyData(): WazyDataState {
 
     // 1) Try the server route first (service role, bypasses RLS).
     try {
-      const res = await fetch("/api/admin-data", { cache: "no-store" });
+      const res = await fetch(`/api/admin-data?_t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const json = (await res.json()) as {
           data: Record<string, unknown[]>;

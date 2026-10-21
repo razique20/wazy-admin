@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient, hasServiceRoleKey, supabase } from "@/lib/supabase";
 import { writeAuditLog, type AuditAction } from "@/lib/audit";
+import { directDbConfigured, withDirectDb } from "@/lib/db-read";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +26,14 @@ function getClient() {
 }
 
 interface DbAction {
-  action: "select" | "insert" | "update" | "delete";
-  table: string;
+  action: "select" | "insert" | "update" | "delete" | "query";
+  table?: string;
   id?: string;
   payload?: Record<string, unknown>;
   order?: string;
   ascending?: boolean;
   limit?: number;
+  sql?: string;
 }
 
 /** Audit action per DbAction, when the console caller opts in. */
@@ -49,8 +51,53 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { action, table, id, payload } = body;
-  if (!ALLOWED_TABLES.has(table)) {
+  const { action, table, id, payload, sql } = body;
+
+  if (action === "query") {
+    const rawSql = (sql ?? "").trim();
+    if (!rawSql) {
+      return NextResponse.json({ error: "SQL query string is required" }, { status: 400 });
+    }
+
+    // Ensure statement is read-only
+    const cleanSql = rawSql.replace(/;\s*$/, "");
+    if (cleanSql.includes(";")) {
+      return NextResponse.json({ error: "Multiple SQL statements are not permitted" }, { status: 400 });
+    }
+
+    const normalized = cleanSql.replace(/\s+/g, " ");
+    if (!/^(SELECT|WITH)\b/i.test(normalized)) {
+      return NextResponse.json({ error: "Only read-only SELECT or WITH statements are allowed" }, { status: 400 });
+    }
+
+    // Prohibit write or schema-altering commands
+    if (/\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|EXECUTE|VACUUM|REINDEX|CALL|DO)\b/i.test(normalized)) {
+      return NextResponse.json({ error: "Write or schema-altering SQL statements are prohibited in SQL Runner" }, { status: 403 });
+    }
+
+    try {
+      if (directDbConfigured()) {
+        const rows = await withDirectDb(async (client) => {
+          await client.query("SET statement_timeout = 15000");
+          const res = await client.query(cleanSql);
+          return res.rows;
+        });
+        return NextResponse.json({ data: rows });
+      }
+
+      return NextResponse.json(
+        { error: "Direct database connection is not configured to execute arbitrary SQL on this environment." },
+        { status: 501 }
+      );
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Query execution failed" },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (!table || !ALLOWED_TABLES.has(table)) {
     return NextResponse.json({ error: `Table "${table}" is not allowed` }, { status: 403 });
   }
 

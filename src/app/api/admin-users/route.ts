@@ -3,6 +3,7 @@ import { createServiceRoleClient, hasServiceRoleKey } from "@/lib/supabase";
 import { directDbConfigured, withDirectDb } from "@/lib/db-read";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export interface AuthUser {
   id: string;
@@ -28,7 +29,7 @@ interface UsersPayload {
  * Falls back to the GoTrue admin API, and degrades gracefully to an empty
  * list when neither is configured.
  */
-const NO_STORE = { "Cache-Control": "no-store" } as const;
+const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate" } as const;
 
 async function listUsersDirectPg(): Promise<AuthUser[]> {
   return withDirectDb(async (client) => {

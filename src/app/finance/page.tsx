@@ -63,7 +63,7 @@ export default function FinancePage() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/admin-users", { cache: "no-store" });
+        const res = await fetch(`/api/admin-users?_t=${Date.now()}`, { cache: "no-store" });
         const json = await res.json();
         if (!cancelled) setAuthUsers(json.users ?? []);
       } catch {
@@ -73,7 +73,7 @@ export default function FinancePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [lastUpdated]);
 
   const emailByOwner = useMemo(() => {
     const map = new Map<string, string>();

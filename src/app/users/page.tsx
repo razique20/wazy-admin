@@ -69,7 +69,7 @@ const ACCOUNT_STATUS_META: Record<
 type SortField = "email" | "documentsCount" | "netTotal" | "lastActivity" | "expensesThisMonth";
 
 export default function UsersPage() {
-  const { data, loading, error, refresh } = useWazy();
+  const { data, loading, error, refresh, lastUpdated } = useWazy();
   const { currency: displayCurrency } = useDisplayCurrency();
   const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
   const [authSource, setAuthSource] = useState<string>("loading");
@@ -90,7 +90,7 @@ export default function UsersPage() {
 
   const loadAuthUsers = async () => {
     try {
-      const res = await fetch("/api/admin-users", { cache: "no-store" });
+      const res = await fetch(`/api/admin-users?_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json();
       setAuthUsers(json.users ?? []);
       setAuthSource(json.source ?? "unknown");
@@ -101,7 +101,7 @@ export default function UsersPage() {
     // Reconcile against the audit log: GoTrue listUsers can serve a stale row
     // for a user that was just deleted (replica lag) — flag those as deleted.
     try {
-      const res = await fetch("/api/admin-audit?limit=200", { cache: "no-store" });
+      const res = await fetch(`/api/admin-audit?limit=200&_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       const rows = (json.rows ?? []) as {
         action: string;
@@ -123,7 +123,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     void loadAuthUsers();
-  }, []);
+  }, [lastUpdated]);
 
   const moneyOpts = useMemo(
     () => ({

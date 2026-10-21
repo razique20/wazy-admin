@@ -42,7 +42,7 @@ import { cn } from "@/lib/cn";
 import type { UserTier } from "@/lib/types";
 
 export default function AiUsagePage() {
-  const { data, loading, error, refresh } = useWazy();
+  const { data, loading, error, refresh, lastUpdated } = useWazy();
   const [month, setMonth] = useState<string>(() => quotaMonthKey());
   const [tiers, setTiers] = useState<Record<string, string>>({});
   const [tierSource, setTierSource] = useState<string>("unknown");
@@ -55,8 +55,8 @@ export default function AiUsagePage() {
   const loadMeta = useCallback(async () => {
     try {
       const [usersRes, tiersRes] = await Promise.all([
-        fetch("/api/admin-users", { cache: "no-store" }),
-        fetch("/api/user-tiers", { cache: "no-store" }),
+        fetch(`/api/admin-users?_t=${Date.now()}`, { cache: "no-store" }),
+        fetch(`/api/user-tiers?_t=${Date.now()}`, { cache: "no-store" }),
       ]);
       const usersJson = await usersRes.json().catch(() => ({}));
       const tiersJson = await tiersRes.json().catch(() => ({}));
@@ -70,7 +70,7 @@ export default function AiUsagePage() {
 
   useEffect(() => {
     void loadMeta();
-  }, [loadMeta]);
+  }, [loadMeta, lastUpdated]);
 
   useEffect(() => {
     if (!notice) return;
